@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  body {
+    background-color: #FAF7F2;
+    color: #1A202C;
+    font-family: var(--font-body);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Accessible focus indicators for elderly seniors */
+  button:focus-visible, a:focus-visible {
+    outline: 3px solid #1E4D2B;
+    outline-offset: 3px;
+  }
+}
+
+/* ─── Waveform animation for listening state ─── */
+@keyframes voice-wave {
+  0%, 100% { height: 14px; }
+  50%       { height: 48px; }
+}
+.animate-voice-bar-1 { animation: voice-wave 1s   ease-in-out infinite 0.1s;  }
+.animate-voice-bar-2 { animation: voice-wave 1.2s ease-in-out infinite 0.3s;  }
+.animate-voice-bar-3 { animation: voice-wave 0.8s ease-in-out infinite 0.15s; }
+.animate-voice-bar-4 { animation: voice-wave 1.1s ease-in-out infinite 0.4s;  }
+.animate-voice-bar-5 { animation: voice-wave 0.9s ease-in-out infinite 0.25s; }
+.animate-voice-bar-6 { animation: voice-wave 1.3s ease-in-out infinite 0.35s; }
+
+/* ─── Page Entrance Animations ─────────────────────────────────────────────
+   Three gentle motions used across the home-screen stagger sequence:
+     .reveal-up    — slide up from 18px below  + fade   (most sections)
+     .reveal-down  — slide down from 14px above + fade   (greeting header)
+     .reveal-left  — slide in from 20px right   + fade   (top-right cluster)
+
+   Each element starts hidden (opacity:0) and animates to resting position.
+   The delay is set per-element via the custom property --reveal-delay.
+
+   prefers-reduced-motion: skip every animation, show everything instantly.
+─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes reveal-down {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+@keyframes reveal-left {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+/* Base reveal class — shared animation settings */
+.reveal-up,
+.reveal-down,
+.reveal-left {
+  opacity: 0;                          /* hidden before animation fires  */
+  animation-duration: 600ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); /* ease-out */
+  animation-fill-mode: both;           /* hold end-state after finishing */
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal-up   { animation-name: reveal-up;   }
+.reveal-down { animation-name: reveal-down; }
+.reveal-left { animation-name: reveal-left; }
+
+/* Card variants — slightly longer + softer for the hero action cards */
+.reveal-up-card {
+  opacity: 0;
+  animation-name: reveal-up;
+  animation-duration: 680ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation-fill-mode: both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* Accessibility: honour reduced-motion preference — show everything at once */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-up,
+  .reveal-down,
+  .reveal-left,
+  .reveal-up-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
