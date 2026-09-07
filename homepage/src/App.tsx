@@ -198,47 +198,49 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div 
-      className={`min-h-screen w-full bg-[#FAF7F2] text-[#1A202C] flex flex-col justify-between font-brand-body transition-all duration-700 ease-out ${
-        isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
-      } ${getFontSizeClass()} ${
-        preferences.highContrast ? 'contrast-125 font-medium' : ''
-      }`}
-    >
-      {/* 1. Header with Time Greeting, Temporal Date, and Settings */}
-      <GreetingHeader
-        userName={userName}
-        onOpenSettings={() => setIsAccessibilityOpen(true)}
-      />
-
-      {/* 2. Main Content Container */}
-      <main className="w-full max-w-6xl mx-auto px-4 sm:px-8 md:px-12 py-6 sm:py-8 flex-grow flex flex-col gap-6 sm:gap-8">
-        
-        {/* Gentle Encouragement & Streak Card with AI Cognitive Reflection */}
-        <StreakCard streakDays={3} improvementPercentage={12} userName={userName} userId={userId} />
-
-        {/* Today's Routine Preview Strip (Next 1-2 Items with DONE & REMIND ME LATER) */}
-        <RoutinePreview 
-          schedule={routineSchedule}
-          onMarkDone={handleToggleRoutine}
-          onOpenFullSchedule={() => setSelectedCard({
-            id: 'routine-full',
-            title: "Today's Routine & Medicine",
-            description: "View all 7 scheduled steps for your day.",
-          })}
+    <>
+      <div 
+        className={`min-h-screen w-full bg-[#FAF7F2] text-[#1A202C] flex flex-col justify-between font-brand-body transition-opacity duration-700 ease-out ${
+          isMounted ? 'opacity-100' : 'opacity-0'
+        } ${getFontSizeClass()} ${
+          preferences.highContrast ? 'contrast-125 font-medium' : ''
+        }`}
+      >
+        {/* 1. Header with Time Greeting, Temporal Date, and Settings */}
+        <GreetingHeader
+          userName={userName}
+          onOpenSettings={() => setIsAccessibilityOpen(true)}
         />
 
-        {/* Four Large Hero Action Cards */}
-        <HeroActionCards onSelectCard={handleSelectCard} />
+        {/* 2. Main Content Container */}
+        <main className="w-full max-w-6xl mx-auto px-4 sm:px-8 md:px-12 py-6 sm:py-8 flex-grow flex flex-col gap-6 sm:gap-8">
+          
+          {/* Gentle Encouragement & Streak Card with AI Cognitive Reflection */}
+          <StreakCard streakDays={3} improvementPercentage={12} userName={userName} userId={userId} />
 
-      </main>
+          {/* Today's Routine Preview Strip (Next 1-2 Items with DONE & REMIND ME LATER) */}
+          <RoutinePreview 
+            schedule={routineSchedule}
+            onMarkDone={handleToggleRoutine}
+            onOpenFullSchedule={() => setSelectedCard({
+              id: 'routine-full',
+              title: "Today's Routine & Medicine",
+              description: "View all 7 scheduled steps for your day.",
+            })}
+          />
 
-      {/* 3. Subtle, Warm Footer */}
-      <footer className="w-full border-t border-[#E8DFD1] py-6 px-4 text-center text-xs sm:text-sm text-[#1A202C]/60">
-        <p>NeuroNova Daily Companion • Designed with dignity, patience, and love for our elders.</p>
-      </footer>
+          {/* Four Large Hero Action Cards */}
+          <HeroActionCards onSelectCard={handleSelectCard} />
 
-      {/* 4. Persistent Voice Assistant (Floating Button + Listening Overlay) */}
+        </main>
+
+        {/* 3. Subtle, Warm Footer */}
+        <footer className="w-full border-t border-[#E8DFD1] py-6 px-4 text-center text-xs sm:text-sm text-[#1A202C]/60">
+          <p>NeuroNova Daily Companion • Designed with dignity, patience, and love for our elders.</p>
+        </footer>
+      </div>
+
+      {/* 4. Persistent Viewport-Fixed Voice Assistant (Always accessible on screen without scrolling) */}
       <VoiceAssistant
         userName={userName}
         userId={userId}
@@ -264,7 +266,7 @@ export const App: React.FC = () => {
         cardDescription={selectedCard?.description || ''}
         routineSchedule={routineSchedule}
       />
-    </div>
+    </>
   );
 };
 

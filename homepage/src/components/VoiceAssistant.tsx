@@ -699,7 +699,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   return (
     <>
       {/* 1. Floating Microphone Button with Onboarding Hint */}
-      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40 flex flex-col items-end">
+      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end pointer-events-auto">
         {/* Onboarding Hint Tooltip Bubble */}
         {showHintBubble && !isOpen && (
           <div className="mb-3 max-w-xs bg-white text-[#1A202C] px-4 py-2.5 rounded-2xl shadow-warm-lg border-2 border-forest-300 flex items-center space-x-2 animate-bounce">

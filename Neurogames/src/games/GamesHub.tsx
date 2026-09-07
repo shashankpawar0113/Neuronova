@@ -55,7 +55,7 @@ const GAMES: Game[] = [
     iconBg: 'bg-purple-600 text-white',
     cardBg: 'bg-purple-50/90 hover:bg-purple-100',
     cardBorder: 'border-purple-300 hover:border-purple-500',
-    badge: '4 levels · 3–6 steps',
+    badge: '4 levels · 4–9 boxes & 3–6 steps',
     badgeBg: 'bg-purple-100 text-purple-800 border-purple-200',
     cognitive: 'Short-Term Sequencing',
   },

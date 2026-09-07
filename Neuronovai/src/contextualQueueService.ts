@@ -33,9 +33,105 @@ const CURATED_MOOD_PROFILES: Array<{
   matches: RegExp;
   profile: SongMoodProfile;
 }> = [
-  // 1. Sad / Melancholic / Heartbreak Hindi Ballads (e.g. "Tum" from Laila Majnu, "Kabira", "Agar Tum Saath Ho")
+  // 1. Haryanvi Folk, Desi Beats & Regional Energetic Hits (e.g. Masoom Sharma, Gulzaar, Renuka Panwar)
   {
-    matches: /\b(tum|laila\s+majnu|ahista|agar\s+tum\s+saath\s+ho|channa\s+mereya|kabira|bekhayali|hamari\s+adhuri|phir\s+le\s+aya|tujhe\s+kitna|duaa|dard|judai|alvida|tadap|tanhai|bewafa|sad\s+song|breakup|heartbreak|melancholy|cry|pain)\b/i,
+    matches: /\b(haryanv?i|ragni|masoom\s+sharma|gulzaar\s+chhaniwala|diler\s+kharkiya|renuka\s+panwar|khasa\s+aala|sumit\s+goswami|raju\s+punjabi|sapna\s+choudhary|ajay\s+hooda|amit\s+saini|pranjal\s+dahiya|ruchika\s+jangid|lofar|bahu\s+kale\s+ki|52\s+gaj|kd\s+desi\s+rock|md\s+kd|vicky\s+kajla|bintu\s+pabra|pinna\s+music|sky\s+high\s+music|desi\s+records)\b/i,
+    profile: {
+      vibeLabel: 'Haryanvi Hits & Desi Beats',
+      genre: 'haryanvi_regional',
+      mood: 'energetic',
+      sampleQueries: [
+        'Masoom Sharma hit songs',
+        'Gulzaar Chhaniwala top songs',
+        'Renuka Panwar hit songs',
+        'Diler Kharkiya hit songs',
+        'Khasa Aala Chahar top songs',
+        'Sumit Goswami hit songs',
+        'Raju Punjabi popular songs',
+        '52 Gaj Ka Daman Renuka Panwar song',
+        'Bahu Kale Ki Ajay Hooda song',
+        'Sapna Choudhary dance song',
+      ],
+    },
+  },
+
+  // 2. Punjabi Folk, Pop & Bhangra (e.g. Diljit Dosanjh, Sidhu Moosewala, Karan Aujla, AP Dhillon)
+  {
+    matches: /\b(punjabi|bhangra|diljit\s+dosanjh|sidhu\s+moose\s*wala|karan\s+aujla|ap\s+dhillon|amrinder\s+gill|gurdas\s+maan|sharry\s+maan|jassi\s+gill|babbu\s+maan|kuldeep\s+manak|harrdy\s+sandhu|ammy\s+virk|b\s+praak|jaani|shubh|jordan\s+sandhu|tarsem\s+jassar|speed\s+records|geet\s+mp3|white\s+hill)\b/i,
+    profile: {
+      vibeLabel: 'Punjabi Hits & Bhangra Beats',
+      genre: 'punjabi_regional',
+      mood: 'energetic',
+      sampleQueries: [
+        'Diljit Dosanjh hit songs',
+        'Karan Aujla top songs',
+        'Sidhu Moose Wala top tracks',
+        'AP Dhillon popular songs',
+        'Amrinder Gill popular songs',
+        'Harrdy Sandhu hit songs',
+        'Ammy Virk popular songs',
+        'Gurdas Maan classic songs',
+      ],
+    },
+  },
+
+  // 3. Bollywood Dance & High-Energy Party Hits (e.g. Badshah, Honey Singh, Neha Kakkar)
+  {
+    matches: /\b(party\s+song|dance\s+song|club\s+mix|dj\s+party|banger|kala\s+chashma|kar\s+gayi\s+chull|aankh\s+marey|party\s+all\s+night|nachde\s+ne\s+saare|london\s+thumakda|badshah|honey\s+singh|yo\s+yo|neha\s+kakkar|mika\s+singh|tony\s+kakkar|sukhwinder|daler\s+mehndi|tunak\s+tunak)\b/i,
+    profile: {
+      vibeLabel: 'Bollywood Dance & Party Hits',
+      genre: 'bollywood_dance',
+      mood: 'celebratory',
+      sampleQueries: [
+        'Kala Chashma Baar Baar Dekho song',
+        'Kar Gayi Chull Kapoor and Sons song',
+        'Aankh Marey Simmba song',
+        'Abhi Toh Party Shuru Hui Hai Badshah song',
+        'London Thumakda Queen song',
+        'Gallan Goodiyaan Dil Dhadakne Do song',
+        'Dil Chori Yo Yo Honey Singh song',
+        'Makhna Drive song',
+      ],
+    },
+  },
+
+  // 4. Bhojpuri Hits & Desi Energy
+  {
+    matches: /\b(bhojpuri|pawan\s+singh|khesari\s+lal|nirahua|dinesh\s+lal|akshara\s+singh|choliya|lollypop\s+lagelu|kamariya|bhojpuriya)\b/i,
+    profile: {
+      vibeLabel: 'Bhojpuri Hits & Desi Energy',
+      genre: 'bhojpuri_regional',
+      mood: 'energetic',
+      sampleQueries: [
+        'Pawan Singh top hit songs',
+        'Khesari Lal Yadav popular songs',
+        'Lollypop Lagelu Pawan Singh song',
+        'Nirahua top Bhojpuri songs',
+        'Bhojpuri superhit dance songs',
+      ],
+    },
+  },
+
+  // 5. Rajasthani / Marwadi Folk & Traditional
+  {
+    matches: /\b(rajasthani|marwadi|ghoomar|choudhary|kesariya\s+balam|seema\s+mishra|prakash\s+mali|mame\s+khan)\b/i,
+    profile: {
+      vibeLabel: 'Rajasthani Folk & Traditional',
+      genre: 'rajasthani_folk',
+      mood: 'festive',
+      sampleQueries: [
+        'Kesariya Balam Rajasthani folk song',
+        'Ghoomar Padmavat Rajasthani song',
+        'Choudhary Amit Trivedi Mame Khan song',
+        'Banna Re Baga Mein Rajasthani song',
+        'Prakash Mali Rajasthani bhajan song',
+      ],
+    },
+  },
+
+  // 6. Sad / Melancholic / Heartbreak Hindi Ballads (e.g. "Ahista", "Channa Mereya", "Agar Tum Saath Ho")
+  {
+    matches: /\b(laila\s+majnu|ahista|agar\s+tum\s+saath\s+ho|channa\s+mereya|kabira|bekhayali|hamari\s+adhuri|phir\s+le\s+aya|tujhe\s+kitna|duaa|dard|judai|alvida|tadap|tanhai|bewafa|sad\s+song|breakup|heartbreak|melancholy|cry|pain|dard\s+bhare)\b/i,
     profile: {
       vibeLabel: 'Sad & Melancholic Ballads',
       genre: 'bollywood_sad',
@@ -55,9 +151,29 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 2. Kishore Kumar 70s Classics & Vintage Melodies (e.g. "Kiska Rasta Dekhe", "Pal Pal Dil Ke Paas")
+  // 7. Modern Bollywood Romance & Soulful (Arijit Singh, Atif Aslam, Shreya Ghoshal, etc.)
   {
-    matches: /\b(kishore\s+kumar|kiska\s+rasta|pal\s+pal\s+dil|chookar\s+mere\s+man|yeh\s+jeevan|o\s+mere\s+dil|aanewala\s+pal|mere\s+sapno\s+ki|musafir\s+hoon|zindagi\s+ka\s+safar|diye\s+jalte|70s|r\.?d\.?\s+burman|pancham)\b/i,
+    matches: /\b(arijit\s+singh|atif\s+aslam|shreya\s+ghoshal|jubin\s+nautiyal|mohit\s+chauhan|armaan\s+malik|darshan\s+raval|prateek\s+kuhad|anuv\s+jain|jasleen\s+royal|kesariya|tum\s+hi\s+ho|shayad|raataan\s+lambiyan|hawayein|zaalima|tere\s+hawaale|apna\s+bana\s+le|pee\s+loon)\b/i,
+    profile: {
+      vibeLabel: 'Soulful Bollywood Romance',
+      genre: 'bollywood_romantic',
+      mood: 'romantic',
+      sampleQueries: [
+        'Kesariya Brahmastra song',
+        'Raataan Lambiyan Shershaah song',
+        'Tum Hi Ho Aashiqui 2 song',
+        'Hawayein Jab Harry Met Sejal song',
+        'Apna Bana Le Bhediya song',
+        'Tere Hawaale Laal Singh Chaddha song',
+        'Shayad Love Aaj Kal song',
+        'Zaalima Raees song',
+      ],
+    },
+  },
+
+  // 8. Kishore Kumar 70s Classics & Vintage Melodies (e.g. "Kiska Rasta Dekhe", "Pal Pal Dil Ke Paas")
+  {
+    matches: /\b(kishore\s+kumar|kiska\s+rasta|pal\s+pal\s+dil|chookar\s+mere\s+man|yeh\s+jeevan|o\s+mere\s+dil|aanewala\s+pal|mere\s+sapno\s+ki|musafir\s+hoon|zindagi\s+ka\s+safar|diye\s+jalte|70s|80s|r\.?d\.?\s+burman|pancham|lata\s+mangeshkar|mohammed\s+rafi|asha\s+bhosle|mukesh)\b/i,
     profile: {
       vibeLabel: 'Kishore Kumar 70s Classics',
       genre: 'vintage_70s',
@@ -77,9 +193,9 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 3. Soulful Ghazals (Jagjit Singh, Pankaj Udhas, Mehdi Hassan)
+  // 9. Soulful Ghazals (Jagjit Singh, Pankaj Udhas, Mehdi Hassan)
   {
-    matches: /\b(ghazal|jagjit\s+singh|pankaj\s+udhas|mehdi\s+hassan|chitti\s+aayi|hothon\s+se|woh\s+kagaz|jhuki\s+jhuki|hazaron\s+khwahishen|chandan\s+sa|gulzar|shayari)\b/i,
+    matches: /\b(ghazal|jagjit\s+singh|pankaj\s+udhas|mehdi\s+hassan|ghulam\s+ali|chitti\s+aayi|hothon\s+se|woh\s+kagaz|jhuki\s+jhuki|hazaron\s+khwahishen|chandan\s+sa|gulzar|shayari)\b/i,
     profile: {
       vibeLabel: 'Soulful Ghazals & Poetry',
       genre: 'ghazals',
@@ -97,7 +213,7 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 4. 90s Bollywood Golden Romance (Kumar Sanu, Alka Yagnik, Udit Narayan, Sonu Nigam)
+  // 10. 90s Bollywood Golden Romance (Kumar Sanu, Alka Yagnik, Udit Narayan, Sonu Nigam)
   {
     matches: /\b(90s|kumar\s+sanu|alka\s+yagnik|udit\s+narayan|sonu\s+nigam|tujhe\s+dekha|mera\s+dil\s+bhi|pehla\s+nasha|tip\s+tip|bahon\s+ke|dhadkan|aashiqui|saajan)\b/i,
     profile: {
@@ -117,9 +233,9 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 5. Devotional & Spiritual Peace (Bhajans, Mantras, Chants, Sufi)
+  // 11. Devotional & Spiritual Peace (Bhajans, Mantras, Chants, Sufi)
   {
-    matches: /\b(bhajan|aarti|kirtan|mantra|krishna|ram|shiva|devi|spiritual|sufi|kun\s+faya|khwaja\s+mere|arziyan|chaap\s+tilak|kailash\s+kher|nusrat)\b/i,
+    matches: /\b(bhajan|aarti|kirtan|mantra|krishna|ram|shiva|devi|spiritual|sufi|kun\s+faya|khwaja\s+mere|arziyan|chaap\s+tilak|kailash\s+kher|nusrat|anup\s+jalota)\b/i,
     profile: {
       vibeLabel: 'Devotional & Spiritual Serenity',
       genre: 'devotional_spiritual',
@@ -137,9 +253,9 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 6. Classical Sitar, Flute, Instrumental & Meditation
+  // 12. Classical Sitar, Flute, Instrumental & Meditation
   {
-    matches: /\b(sitar|flute|raga|raag|tanpura|instrumental|meditation|overthinker|peaceful\s+sitar|calm|zen|relaxation)\b/i,
+    matches: /\b(sitar|flute|raga|raag|tanpura|instrumental|meditation|overthinker|peaceful\s+sitar|calm|zen|relaxation|santoor|shehnai)\b/i,
     profile: {
       vibeLabel: 'Indian Classical & Meditation Sounds',
       genre: 'classical_instrumental',
@@ -155,9 +271,9 @@ const CURATED_MOOD_PROFILES: Array<{
     },
   },
 
-  // 7. Global Acoustic & Gentle Pop (e.g. Dhruv, Ed Sheeran, The Weeknd)
+  // 13. Global Acoustic & Gentle Pop (e.g. Dhruv, Ed Sheeran, The Weeknd)
   {
-    matches: /\b(double\s+take|dhruv|ed\s+sheeran|weeknd|taylor\s+swift|coldplay|acoustic|pop|r&b|english|western)\b/i,
+    matches: /\b(double\s+take|dhruv|ed\s+sheeran|weeknd|the\s+weeknd|taylor\s+swift|coldplay|acoustic|pop|r&b|english|western|billie\s+eilish|bruno\s+mars|shaboozey|eminem|dua\s+lipa)\b/i,
     profile: {
       vibeLabel: 'Soothing Acoustic & Indie Melodies',
       genre: 'indie_acoustic',
@@ -175,29 +291,122 @@ const CURATED_MOOD_PROFILES: Array<{
 ];
 
 /**
- * Uses fast heuristic pattern matching to find a matching cluster profile.
+ * Parses raw title and artist strings to identify clean song name and lead performer.
+ * Cleans out video markers, record label channel names, and parenthetical metadata.
  */
-function findHeuristicProfile(queryText: string): SongMoodProfile {
+export function extractArtistAndSong(
+  title: string,
+  artist: string = ''
+): { detectedSong: string; detectedArtist: string } {
+  const raw = (title || '').trim();
+
+  // Split by pipe '|' or forward slash '/'
+  const pipeParts = raw.split(/[|/]/).map((p) => p.trim()).filter(Boolean);
+  const primary = pipeParts[0] || raw;
+
+  // Remove parenthetical video markers from primary, e.g. (Official Video), [Official Audio]
+  const beforeParen = primary.split(/[\(\[]/)[0].trim();
+
+  let detectedSong = beforeParen || raw;
+  let detectedArtist = (artist || '').trim();
+
+  // 1. If primary contains " - ", e.g. "Lofar - Masoom Sharma" or "Diljit Dosanjh - Born to Shine"
+  if (beforeParen.includes(' - ')) {
+    const parts = beforeParen.split(' - ');
+    detectedSong = parts[0].trim();
+    detectedArtist = parts.slice(1).join(' - ').trim();
+  }
+
+  // 2. If the provided artist is a generic label/channel or empty, check pipe parts
+  const isGenericChannel = /topic|vevo|records|music|company|series|audio|official|films|channel|studio|tv/i.test(detectedArtist);
+  if (isGenericChannel || !detectedArtist) {
+    for (let i = 1; i < pipeParts.length; i++) {
+      const p = pipeParts[i].replace(/[\(\[].*?[\)\]]/g, '').trim();
+      if (
+        p &&
+        !/records|music|company|series|audio|official|trailer|teaser|full\s+song|lyric|video|hd|4k|song/i.test(p) &&
+        p.length < 35
+      ) {
+        detectedArtist = p;
+        break;
+      }
+    }
+  }
+
+  // Clean trailing noise from detected artist
+  detectedArtist = detectedArtist
+    .replace(/\b(official\s+video|official\s+audio|video\s+song|full\s+song|music)\b/gi, '')
+    .trim();
+
+  return { detectedSong, detectedArtist };
+}
+
+/**
+ * Uses fast heuristic pattern matching and artist spotlighting to find a matching cluster profile.
+ * Never blindly defaults to 1970s Kishore Kumar ballads for modern or regional music.
+ */
+function findHeuristicProfile(songTitle: string, artist: string = ''): SongMoodProfile {
+  const combinedText = `${songTitle} ${artist}`.trim();
+  const { detectedSong, detectedArtist } = extractArtistAndSong(songTitle, artist);
+
+  // 1. Check curated genre clusters first
   for (const item of CURATED_MOOD_PROFILES) {
-    if (item.matches.test(queryText)) {
+    if (item.matches.test(combinedText)) {
+      // If we identified a specific singer/artist, customize the vibeLabel and top queries!
+      if (detectedArtist && !/records|music|company|channel|official|topic|vevo/i.test(detectedArtist)) {
+        const cleanArtistName = detectedArtist.trim();
+        const existingLabel = item.profile.vibeLabel;
+        const alreadyHasArtist = new RegExp(cleanArtistName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(existingLabel);
+        const dynamicLabel = alreadyHasArtist ? existingLabel : `${cleanArtistName} & ${existingLabel}`;
+
+        const otherQueries = item.profile.sampleQueries.filter(
+          (q) => !q.toLowerCase().includes(cleanArtistName.toLowerCase())
+        );
+
+        return {
+          ...item.profile,
+          vibeLabel: dynamicLabel,
+          sampleQueries: [
+            `${cleanArtistName} hit songs`,
+            `${cleanArtistName} top songs`,
+            `${cleanArtistName} popular tracks`,
+            ...otherQueries.slice(0, 5),
+          ],
+        };
+      }
       return item.profile;
     }
   }
 
-  // General classic Bollywood fallback
+  // 2. If no genre cluster matched, but we have a valid artist -> Spotlight that artist!
+  // This guarantees we NEVER fall back to Kishore Kumar 70s for modern/regional songs
+  if (detectedArtist && !/records|music|company|channel|official|topic|vevo/i.test(detectedArtist)) {
+    return {
+      vibeLabel: `More from ${detectedArtist}`,
+      genre: 'artist_spotlight',
+      mood: 'similar_vibe',
+      sampleQueries: [
+        `${detectedArtist} hit songs`,
+        `${detectedArtist} top tracks`,
+        `${detectedArtist} popular songs`,
+        `${detectedArtist} latest song`,
+        `${detectedSong} ${detectedArtist} song`,
+        `${detectedArtist} songs`,
+      ],
+    };
+  }
+
+  // 3. True generic fallback (uses clean title, NOT Kishore 70s unless title implies retro)
   return {
-    vibeLabel: 'Nostalgic Comfort Melodies',
-    genre: 'nostalgia',
-    mood: 'peaceful',
+    vibeLabel: 'Recommended Hits & Melodies',
+    genre: 'popular_hits',
+    mood: 'uplifting',
     sampleQueries: [
-      'Pal Pal Dil Ke Paas Kishore Kumar song',
-      'Lag Jaa Gale Lata Mangeshkar song',
-      'Chookar Mere Man Ko Kishore Kumar song',
-      'Chaudhvin Ka Chand Mohammed Rafi song',
-      'Aanewala Pal Janewala Hai Kishore Kumar song',
-      'Kabhi Kabhie Mere Dil Mein Mukesh song',
-      'Ek Ajnabee Haseena Se Kishore Kumar song',
-      'Hothon Se Chhoo Lo Tum Jagjit Singh song',
+      `${detectedSong} song`,
+      `${detectedSong} official track`,
+      'Top Trending Hits song',
+      'Popular Melodic Hits song',
+      'Latest Superhit songs',
     ],
   };
 }
@@ -307,7 +516,7 @@ export async function generateContextualQueue(
 
   // 2. Fall back to smart heuristic profile if LLM is unavailable or times out
   if (!aiResult || queriesToSearch.length === 0) {
-    const profile = findHeuristicProfile(combinedQuery);
+    const profile = findHeuristicProfile(songTitle, artist);
     vibeLabel = profile.vibeLabel;
     genre = profile.genre;
     mood = profile.mood;
@@ -325,7 +534,7 @@ export async function generateContextualQueue(
   await Promise.all(
     targetQueries.map(async (query) => {
       try {
-        const searchRes = await searchYouTubeMusic('1970s', 'all', undefined, query);
+        const searchRes = await searchYouTubeMusic('all', 'all', undefined, query);
         if (searchRes.tracks && searchRes.tracks.length > 0) {
           // Take the top verified clean track for this recommendation
           for (const track of searchRes.tracks) {

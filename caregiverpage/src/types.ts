@@ -64,13 +64,24 @@ export interface PatientOverview {
   cognition: {
     totalGamesPlayed: number;
     averageAccuracy: number;
+    totalGameTimeMinutes?: number;
+    highestCombinationReached?: number;
     recentGames: Array<{
       gameType: string;
       level: number;
       accuracy: number;
       responseTimeMs: number;
       attempts: number;
+      combinationsReached?: number;
       timestamp: string;
+    }>;
+    gameAnalytics?: Array<{
+      date: string;
+      fullDate?: string;
+      timeMinutes: number;
+      combinations: number;
+      accuracy: number;
+      gamesCount: number;
     }>;
   };
   music: {
@@ -79,6 +90,24 @@ export interface PatientOverview {
       id: string;
       title: string;
       artist: string;
+      genre?: string;
+    }>;
+    totalListeningMinutes?: number;
+    musicAnalytics?: Array<{
+      date: string;
+      fullDate?: string;
+      listeningMinutes: number;
+      tracksCount: number;
+    }>;
+    recentHistory?: Array<{
+      id: string;
+      title: string;
+      artist: string;
+      albumArt?: string;
+      durationMinutes?: number;
+      formattedDuration?: string;
+      playedAt?: number | string;
+      playCount?: number;
       genre?: string;
     }>;
   };
@@ -98,6 +127,14 @@ export interface PatientOverview {
     } | null;
   };
   weeklyRoutineCompletionCount: number;
+  aiCognitiveAnalysis?: {
+    status: string;
+    statusBadge: string;
+    summary: string;
+    combinationInsight: string;
+    musicInsight: string;
+    recommendations: string[];
+  };
   voiceActivity?: {
     recentLogs: VoiceAssistantLog[];
     todayCount: number;

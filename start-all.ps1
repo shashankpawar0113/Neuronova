@@ -1,7 +1,8 @@
 # Start all NeuroNova services
-$root = $PSScriptRoot
+$item = Get-Item $PSScriptRoot
+$root = if ($item.Target) { $item.Target } else { $item.FullName }
 
-Write-Host "Starting all NeuroNova services..." -ForegroundColor Cyan
+Write-Host "Starting all NeuroNova services from $root..." -ForegroundColor Cyan
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neuronovai'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\authpage'; npm run dev"
@@ -10,7 +11,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ro
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neurogames'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\caregiverpage'; npm run dev"
 
-Start-Sleep -Seconds 3
-Start-Process "http://localhost:5175/"
+Start-Sleep -Seconds 4
+Start-Process "http://localhost:5174/"
 
-Write-Host "All services started! Homepage opened at http://localhost:5175/" -ForegroundColor Green
+Write-Host "All services started! Auth portal opened at http://localhost:5174/" -ForegroundColor Green

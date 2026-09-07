@@ -171,6 +171,9 @@ export const DailyRoutineRecallGame: React.FC<DailyRoutineRecallGameProps> = ({ 
       <GameResultScreen
         result={result}
         customEmoji={<Sun className="w-10 h-10 text-gold-500" />}
+        currentLevel={level}
+        maxLevel={LEVEL_CONFIGS.length}
+        onNextLevel={() => resetGame(level + 1)}
         onPlayAgain={() => resetGame(level)}
         onBack={onBack}
       />
@@ -183,26 +186,11 @@ export const DailyRoutineRecallGame: React.FC<DailyRoutineRecallGameProps> = ({ 
         title="Daily Routine Recall"
         subtitle="Arrange your day in the right order"
         level={level}
+        maxLevel={LEVEL_CONFIGS.length}
         onBack={onBack}
+        onReset={() => initLevel(level)}
         accentColor="text-gold-700"
       />
-
-      {/* Level selector */}
-      <div className="flex gap-2 px-4 sm:px-6 pt-4 overflow-x-auto pb-1">
-        {LEVEL_CONFIGS.map((cfg, i) => (
-          <button
-            key={i}
-            onClick={() => resetGame(i + 1)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
-              level === i + 1
-                ? 'bg-gold-600 text-white border-gold-600 shadow-md'
-                : 'bg-white border-cream-300 text-[#1A202C]/70 hover:border-gold-300'
-            }`}
-          >
-            Level {i + 1} — {cfg.steps} steps
-          </button>
-        ))}
-      </div>
 
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 py-5 gap-4 max-w-lg mx-auto w-full">
         {/* Instructions */}

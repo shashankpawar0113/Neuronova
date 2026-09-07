@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, RefreshCw, Home, Trophy, Heart } from 'lucide-react';
+import { Star, RefreshCw, Home, Trophy, Heart, ArrowRight } from 'lucide-react';
 import { GameResult } from '../types';
 
 interface GameResultScreenProps {
@@ -8,6 +8,9 @@ interface GameResultScreenProps {
   customEmoji?: React.ReactNode; // Lucide icon node to show at top
   onPlayAgain: () => void;
   onBack: () => void;
+  currentLevel?: number;
+  maxLevel?: number;
+  onNextLevel?: () => void;
 }
 
 const MESSAGES: Record<string, (r: GameResult) => string> = {
@@ -49,6 +52,9 @@ export const GameResultScreen: React.FC<GameResultScreenProps> = ({
   customEmoji,
   onPlayAgain,
   onBack,
+  currentLevel,
+  maxLevel,
+  onNextLevel,
 }) => {
   const message = customMessage ?? MESSAGES[result.gameType]?.(result) ?? 'Well done! Every try is a step forward. 💚';
   const seconds = Math.round(result.responseTimeMs / 1000);
@@ -59,6 +65,13 @@ export const GameResultScreen: React.FC<GameResultScreenProps> = ({
     return 1;
   };
   const stars = getStars();
+
+  const hasNextLevel = Boolean(
+    onNextLevel && currentLevel && maxLevel && currentLevel < maxLevel
+  );
+  const isFinalLevel = Boolean(
+    currentLevel && maxLevel && currentLevel >= maxLevel
+  );
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center p-4">
@@ -93,39 +106,74 @@ export const GameResultScreen: React.FC<GameResultScreenProps> = ({
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-7 bg-forest-50 rounded-2xl p-4 border border-forest-100">
+        <div className={`grid ${result.combinationsReached !== undefined ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-6 bg-forest-50 rounded-2xl p-4 border border-forest-100`}>
+          {result.combinationsReached !== undefined && (
+            <div className="text-center">
+              <p className="text-2xl font-extrabold text-purple-700">{result.combinationsReached}</p>
+              <p className="text-[11px] text-[#1A202C]/60 mt-0.5">Steps Reached</p>
+            </div>
+          )}
           <div className="text-center">
             <p className="text-2xl font-extrabold text-forest-700">{result.accuracy}%</p>
-            <p className="text-xs text-[#1A202C]/60 mt-0.5">Accuracy</p>
+            <p className="text-[11px] text-[#1A202C]/60 mt-0.5">Accuracy</p>
           </div>
           <div className="text-center border-x border-forest-200">
             <p className="text-2xl font-extrabold text-forest-700">{seconds}s</p>
-            <p className="text-xs text-[#1A202C]/60 mt-0.5">Time</p>
+            <p className="text-[11px] text-[#1A202C]/60 mt-0.5">Time</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-extrabold text-forest-700">{result.attempts}</p>
-            <p className="text-xs text-[#1A202C]/60 mt-0.5">Attempts</p>
+            <p className="text-[11px] text-[#1A202C]/60 mt-0.5">Attempts</p>
           </div>
         </div>
 
+        {/* Final Level Completion Banner */}
+        {isFinalLevel && (
+          <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-forest-100 border border-forest-300 text-forest-800 text-sm font-extrabold shadow-xs">
+            <Trophy className="w-4 h-4 text-forest-600" />
+            <span>All {maxLevel} Levels Completed!</span>
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="flex flex-col gap-3">
-          <button
-            onClick={onPlayAgain}
-            className="w-full py-4 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-lg font-[Outfit] transition-colors flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(30,107,30,0.25)]"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Play Again
-          </button>
+          {hasNextLevel ? (
+            <>
+              <button
+                onClick={onNextLevel}
+                className="w-full py-4 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-lg font-[Outfit] transition-all flex items-center justify-center gap-2.5 shadow-[0_6px_20px_rgba(30,107,30,0.3)] hover:shadow-xl active:scale-[0.99] cursor-pointer"
+              >
+                <span>Next Level</span>
+                <ArrowRight className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={onPlayAgain}
+                className="w-full py-3.5 rounded-2xl bg-white hover:bg-forest-50 border-2 border-forest-200 text-forest-800 font-bold text-base font-[Plus_Jakarta_Sans] transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4 text-forest-600" />
+                Play Again
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onPlayAgain}
+              className="w-full py-4 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-lg font-[Outfit] transition-colors flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(30,107,30,0.25)] cursor-pointer"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Play Again
+            </button>
+          )}
+
           <button
             onClick={onBack}
-            className="w-full py-4 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-cream-300 text-forest-800 font-bold text-base font-[Plus_Jakarta_Sans] transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-cream-300 text-forest-800 font-bold text-base font-[Plus_Jakarta_Sans] transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             All Games
           </button>
           <button
             onClick={() => { window.location.href = 'http://localhost:5175'; }}
-            className="w-full py-3 rounded-2xl text-[#1A202C]/60 hover:text-forest-700 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5"
+            className="w-full py-2.5 rounded-2xl text-[#1A202C]/60 hover:text-forest-700 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Home className="w-4 h-4" />
             ← Back to Main Home Screen

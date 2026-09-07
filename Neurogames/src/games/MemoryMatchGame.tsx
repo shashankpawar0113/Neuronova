@@ -147,6 +147,12 @@ export const MemoryMatchGame: React.FC<MemoryMatchGameProps> = ({ onBack }) => {
     return (
       <GameResultScreen
         result={result}
+        currentLevel={level}
+        maxLevel={LEVEL_CONFIG.length}
+        onNextLevel={() => {
+          setLevel(level + 1);
+          resetGame(level + 1);
+        }}
         onPlayAgain={() => resetGame(level)}
         onBack={onBack}
       />
@@ -161,26 +167,11 @@ export const MemoryMatchGame: React.FC<MemoryMatchGameProps> = ({ onBack }) => {
         title="Memory Match"
         subtitle="Find matching pairs — take your time!"
         level={level}
+        maxLevel={LEVEL_CONFIG.length}
         onBack={onBack}
+        onReset={() => resetGame(level)}
         accentColor="text-forest-700"
       />
-
-      {/* Level selector */}
-      <div className="flex gap-2 px-4 sm:px-6 pt-4 overflow-x-auto pb-1">
-        {LEVEL_CONFIG.map((_cfg, i) => (
-          <button
-            key={i}
-            onClick={() => { setLevel(i + 1); resetGame(i + 1); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${
-              level === i + 1
-                ? 'bg-forest-600 text-white border-forest-600 shadow-md'
-                : 'bg-white border-cream-300 text-[#1A202C]/70 hover:border-forest-300'
-            }`}
-          >
-            Level {i + 1}
-          </button>
-        ))}
-      </div>
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
         <p className="text-sm text-[#1A202C]/60 mb-6 font-[Plus_Jakarta_Sans]">

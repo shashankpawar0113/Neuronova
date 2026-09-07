@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { PatientOverview, LinkedPatient, VoiceAssistantLog } from '../types';
+import { AnalyticsCharts } from './AnalyticsCharts';
 
 interface PatientDashboardViewProps {
   overview: PatientOverview;
@@ -390,7 +391,23 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
 
       {/* === DAILY OVERVIEW TAB === */}
       {activeTab === 'overview' && (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="space-y-6 sm:space-y-8">
+          {/* AI Cognitive Health Analysis & Interactive Progress Graphs */}
+          <AnalyticsCharts
+            gameData={cognition.gameAnalytics}
+            musicData={music.musicAnalytics}
+            aiAnalysis={overview.aiCognitiveAnalysis}
+            totalGameTimeMinutes={cognition.totalGameTimeMinutes}
+            highestCombinationReached={cognition.highestCombinationReached}
+            totalListeningMinutes={music.totalListeningMinutes}
+            averageAccuracy={cognition.averageAccuracy}
+            likedSongsCount={music.likedSongsCount}
+            patientName={patient.name}
+            recentGames={cognition.recentGames}
+            recentMusicHistory={music.recentHistory}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         
         {/* Left 2 Cols: Today's Routine & Medicine Feed */}
         <div className="lg:col-span-2 space-y-6">
@@ -512,8 +529,16 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
                           {game.gameType === 'culturalGame' && 'Cultural Heritage Quiz'}
                           {game.gameType === 'dailyRoutineRecall' && 'Daily Routine Recall'}
                         </div>
-                        <p className="text-xs text-[#1A202C]/60">
-                          Level {game.level} • {Math.round(game.responseTimeMs / 1000)}s response time
+                        <p className="text-xs text-[#1A202C]/60 flex items-center gap-1.5 flex-wrap mt-0.5">
+                          {game.combinationsReached ? (
+                            <span className="font-bold text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded-md border border-purple-200 text-[11px]">
+                              {game.combinationsReached} Steps Reached
+                            </span>
+                          ) : (
+                            <span>Level {game.level}</span>
+                          )}
+                          <span>•</span>
+                          <span>{Math.round(game.responseTimeMs / 1000)}s response time</span>
                         </p>
                       </div>
                     </div>
@@ -615,6 +640,7 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
 
         </div>
 
+      </div>
       </div>
       )}
 

@@ -10,6 +10,8 @@ export interface GameResult {
   accuracy: number;       // 0–100
   responseTimeMs: number;
   attempts: number;
+  combinationsReached?: number; // Highest combination streak reached (e.g. in Sequence Recall)
+  durationMs?: number;          // Total session duration in milliseconds
   timestamp: string;      // ISO 8601
 }
 

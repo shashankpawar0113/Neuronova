@@ -4,6 +4,8 @@ export interface GameResult {
   accuracy: number; // 0 to 100
   responseTimeMs: number;
   attempts: number;
+  combinationsReached?: number;
+  durationMs?: number;
   timestamp: string; // ISO date string
 }
 

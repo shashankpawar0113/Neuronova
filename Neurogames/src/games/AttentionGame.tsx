@@ -94,23 +94,32 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack }) => {
   };
 
   if (result) {
-    return <GameResultScreen result={result} customEmoji={<Eye className="w-10 h-10 text-forest-600" />} onPlayAgain={() => resetGame(level)} onBack={onBack} />;
+    return (
+      <GameResultScreen
+        result={result}
+        customEmoji={<Eye className="w-10 h-10 text-forest-600" />}
+        currentLevel={level}
+        maxLevel={LEVEL_CONFIGS.length}
+        onNextLevel={() => resetGame(level + 1)}
+        onPlayAgain={() => resetGame(level)}
+        onBack={onBack}
+      />
+    );
   }
 
   const cols = cfg.gridSize === 4 ? 'grid-cols-2' : cfg.gridSize === 6 ? 'grid-cols-3' : 'grid-cols-3';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col">
-      <GameHeader title="Attention Game" subtitle="Tap the circle that looks different!" level={level} onBack={onBack} accentColor="text-river-700" />
-
-      <div className="flex gap-2 px-4 sm:px-6 pt-4 overflow-x-auto pb-1">
-        {LEVEL_CONFIGS.map((_c, i) => (
-          <button key={i} onClick={() => resetGame(i + 1)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${level === i + 1 ? 'bg-river-500 text-white border-river-500 shadow-md' : 'bg-white border-cream-300 text-[#1A202C]/70 hover:border-river-300'}`}>
-            Level {i + 1}
-          </button>
-        ))}
-      </div>
+      <GameHeader
+        title="Attention Game"
+        subtitle="Tap the circle that looks different!"
+        level={level}
+        maxLevel={LEVEL_CONFIGS.length}
+        onBack={onBack}
+        onReset={() => resetGame(level)}
+        accentColor="text-river-700"
+      />
 
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 gap-6">
         <div className="text-center">

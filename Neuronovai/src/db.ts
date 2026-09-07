@@ -58,6 +58,7 @@ export function initDatabase() {
       accuracy INTEGER NOT NULL,
       response_time_ms INTEGER NOT NULL,
       attempts INTEGER NOT NULL,
+      combinations_reached INTEGER DEFAULT NULL,
       timestamp TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
@@ -144,7 +145,13 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_invite_code ON patient_invite_codes(invite_code);
     CREATE INDEX IF NOT EXISTS idx_history_user ON music_listening_history(user_id);
     CREATE INDEX IF NOT EXISTS idx_history_play_count ON music_listening_history(user_id, play_count DESC);
-    CREATE INDEX IF NOT EXISTS idx_voice_logs_user_date ON voice_assistant_logs(user_id, created_at);
   `);
+
+  try {
+    db.exec(`ALTER TABLE game_results ADD COLUMN combinations_reached INTEGER DEFAULT NULL`);
+  } catch (_) {
+    // Column already exists in existing database
+  }
+
   console.log(`[Database] SQLite initialized at ${dbPath}`);
 }

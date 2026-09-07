@@ -628,9 +628,13 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
     } catch (_) {}
   }, [currentSong, customPlaylist, Math.floor(trackElapsedSeconds / 3)]);
 
+  const lastRecordedSongIdRef = useRef<string | null>(null);
+
   // Track last played song in persistent 30-day history and record play count
   useEffect(() => {
     if (!currentSong || !currentSong.id) return;
+    if (lastRecordedSongIdRef.current === currentSong.id) return;
+    lastRecordedSongIdRef.current = currentSong.id;
     const now = Date.now();
 
     // 1. Record play in central backend for this patient

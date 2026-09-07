@@ -10,7 +10,7 @@ start "NeuroMusic (:5177)" cmd /k "cd /d \"%~dp0Neuromusic\" && npm run dev"
 start "Neurogames (:5178)" cmd /k "cd /d \"%~dp0Neurogames\" && npm run dev"
 start "Caregiver Hub (:5179)" cmd /k "cd /d \"%~dp0caregiverpage\" && npm run dev"
 
-timeout /t 3 /nobreak >nul
-start http://localhost:5175/
+timeout /t 3 >nul 2>nul || ping 127.0.0.1 -n 4 >nul
+start http://localhost:5174/
 
 echo All services launched!
