@@ -74,7 +74,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [micError, setMicError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [showHintBubble, setShowHintBubble] = useState(true);
   const [autoRedirectStatus, setAutoRedirectStatus] = useState<string | null>(null);
   const redirectTimerRef = useRef<any>(null);
 
@@ -698,37 +697,28 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   return (
     <>
-      {/* 1. Floating Microphone Button with Onboarding Hint */}
-      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end pointer-events-auto">
-        {/* Onboarding Hint Tooltip Bubble */}
-        {showHintBubble && !isOpen && (
-          <div className="mb-3 max-w-xs bg-white text-[#1A202C] px-4 py-2.5 rounded-2xl shadow-warm-lg border-2 border-forest-300 flex items-center space-x-2 animate-bounce">
-            <Sparkles className="w-4 h-4 text-forest-600 shrink-0" />
-            <p className="text-xs sm:text-sm font-semibold">
-              Try asking: <span className="text-forest-700 font-bold">"What do I have to do today?"</span>
-            </p>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowHintBubble(false);
-              }}
-              className="text-[#1A202C]/50 hover:text-[#1A202C] p-1 ml-1 cursor-pointer"
-              aria-label="Dismiss voice prompt tip"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+      {/* 1. Floating Microphone Button with Non-Obtrusive Tooltip */}
+      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40 flex items-center pointer-events-auto group">
+        {/* Subtle Tooltip: ONLY shows when hovering or focusing the mic button, never overlaps or blocks page content */}
+        <div 
+          className="hidden sm:flex items-center space-x-2 mr-3 px-4 py-2 bg-white text-[#1A202C] rounded-2xl shadow-warm-lg border-2 border-forest-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-all duration-200 transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
+          role="tooltip"
+        >
+          <Sparkles className="w-4 h-4 text-forest-600 shrink-0" />
+          <p className="text-xs sm:text-sm font-semibold">
+            Try asking: <span className="text-forest-700 font-bold">"What do I have to do today?"</span>
+          </p>
+        </div>
 
         {/* Large Floating Mic Button (64x64px touch target) */}
         <button
           onClick={() => setIsOpen(true)}
-          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-forest-600 hover:bg-forest-700 text-white flex items-center justify-center shadow-warm-lg hover:shadow-2xl active:scale-95 transition-all duration-300 border-4 border-[#FAF7F2] relative group focus-visible:ring-4 focus-visible:ring-forest-400 cursor-pointer"
-          aria-label="Open Voice Assistant for hands-free help"
-          title="Voice Assistant"
+          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-forest-600 hover:bg-forest-700 text-white flex items-center justify-center shadow-warm-lg hover:shadow-2xl active:scale-95 transition-all duration-300 border-4 border-[#FAF7F2] relative focus-visible:ring-4 focus-visible:ring-forest-400 cursor-pointer shrink-0"
+          aria-label="Open Voice Assistant. Try asking: What do I have to do today?"
+          title="Voice Assistant - Tap to speak"
         >
           {/* Subtle warm animated pulsing aura */}
-          <span className="absolute inset-0 rounded-full bg-forest-500 opacity-30 animate-ping pointer-events-none" />
+          <span className="absolute inset-0 rounded-full bg-forest-500 opacity-25 animate-ping pointer-events-none" />
           <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:scale-110 transition-transform duration-200" />
         </button>
       </div>

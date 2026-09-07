@@ -235,7 +235,7 @@ export const App: React.FC = () => {
         </main>
 
         {/* 3. Subtle, Warm Footer */}
-        <footer className="w-full border-t border-[#E8DFD1] py-6 px-4 text-center text-xs sm:text-sm text-[#1A202C]/60">
+        <footer className="w-full border-t border-[#E8DFD1] pt-6 pb-28 sm:pb-32 px-4 text-center text-xs sm:text-sm text-[#1A202C]/60">
           <p>NeuroNova Daily Companion • Designed with dignity, patience, and love for our elders.</p>
         </footer>
       </div>
