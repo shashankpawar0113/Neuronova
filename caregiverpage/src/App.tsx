@@ -242,6 +242,24 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRefreshAll = async () => {
+    if (!selectedPatientId) return;
+    try {
+      await loadOverview(selectedPatientId);
+      setActiveAlert({
+        id: `refreshed_${Date.now()}`,
+        title: 'Analytics Refreshed',
+        message: 'All patient telemetry, cognition data, and routine vitals have been updated.',
+        type: 'success',
+      });
+      setTimeout(() => {
+        setActiveAlert(null);
+      }, 3500);
+    } catch (err) {
+      console.warn('Failed to refresh analytics:', err);
+    }
+  };
+
   const handleLogout = () => {
     try {
       localStorage.removeItem('neuronova_auth_session');
@@ -376,6 +394,8 @@ export const App: React.FC = () => {
               patientId={selectedPatientId || ''}
               onRefreshAI={handleRefreshAI}
               isRefreshingAI={isRefreshingAI}
+              onRefreshAll={handleRefreshAll}
+              isRefreshingAll={isLoadingOverview}
               onRevokeLink={handleRevokeLink}
               activeSidebarTab={activeTab}
               searchFilter={searchQuery}

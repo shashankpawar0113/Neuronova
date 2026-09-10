@@ -30,6 +30,8 @@ interface ModernPatientDashboardProps {
   patientId?: string;
   onRefreshAI?: () => void;
   isRefreshingAI?: boolean;
+  onRefreshAll?: () => void;
+  isRefreshingAll?: boolean;
   onRevokeLink?: (patientId: string) => void;
   activeSidebarTab?: string;
   searchFilter?: string;
@@ -43,6 +45,8 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
   patientId = '',
   onRefreshAI,
   isRefreshingAI = false,
+  onRefreshAll,
+  isRefreshingAll = false,
   onRevokeLink,
   activeSidebarTab,
   searchFilter = '',
@@ -628,8 +632,24 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
             })}
           </div>
 
-          {/* Right Action: More Details Toggle Button for Games and Music */}
-          <div className="flex items-center space-x-3 shrink-0">
+          {/* Right Action: Refresh Analytics + More Details Toggle Button */}
+          <div className="flex items-center space-x-2.5 shrink-0">
+            {/* Refresh All Analytics Option */}
+            <button
+              onClick={() => {
+                if (onRefreshAll) {
+                  onRefreshAll();
+                } else {
+                  window.location.reload();
+                }
+              }}
+              disabled={isRefreshingAll}
+              title="Refresh all patient analytics, cognitive telemetry, music & routine vitals"
+              className="px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs border bg-white text-stone-700 border-stone-200 hover:bg-stone-50 hover:border-stone-300 active:scale-95 disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-[#E86D7C] ${isRefreshingAll ? 'animate-spin' : ''}`} />
+              <span>{isRefreshingAll ? 'Refreshing...' : 'Refresh Analytics'}</span>
+            </button>
             {activeActivityTab === 'games' && (
               <button
                 onClick={() => setShowGamesDetails(!showGamesDetails)}
