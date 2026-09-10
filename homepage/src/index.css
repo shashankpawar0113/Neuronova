@@ -10,6 +10,11 @@
 
   body {
     background-color: #FAF7F2;
+    background-image: url('/meadow-bg.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     color: #1A202C;
     font-family: var(--font-body);
     -webkit-tap-highlight-color: transparent;
@@ -97,3 +102,6 @@
     transform: none !important;
   }
 }
+
+
+

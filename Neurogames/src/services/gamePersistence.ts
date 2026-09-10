@@ -1,4 +1,5 @@
 import type { GameResult } from '../types';
+import { BACKEND_URL } from '../config/urls';
 
 export interface GameUserSession {
   userId: string;
@@ -61,7 +62,7 @@ export const persistGameResult = async (result: GameResult): Promise<void> => {
 
   // 2. Central backend persistence
   try {
-    const response = await fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/games/results`, {
+    const response = await fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/games/results`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(result),
@@ -81,7 +82,7 @@ export const fetchUserGameResults = async (): Promise<GameResult[]> => {
   const userId = session.userId;
 
   try {
-    const response = await fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/games/results`);
+    const response = await fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/games/results`);
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data?.results)) {

@@ -9,6 +9,7 @@ start "Homepage (:5175)" cmd /k "cd /d \"%~dp0homepage\" && npm run dev"
 start "NeuroMusic (:5177)" cmd /k "cd /d \"%~dp0Neuromusic\" && npm run dev"
 start "Neurogames (:5178)" cmd /k "cd /d \"%~dp0Neurogames\" && npm run dev"
 start "Caregiver Hub (:5179)" cmd /k "cd /d \"%~dp0caregiverpage\" && npm run dev"
+start "Health Worker Portal (:5180)" cmd /k "cd /d \"%~dp0healthworker\" && npm run dev"
 
 timeout /t 3 >nul 2>nul || ping 127.0.0.1 -n 4 >nul
 start http://localhost:5174/

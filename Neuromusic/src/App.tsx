@@ -14,14 +14,13 @@ import { MoodCheckIn } from './components/MoodCheckIn';
 import { FormativeEraSelector } from './components/FormativeEraSelector';
 import { FrequencyBanner } from './components/FrequencyBanner';
 import { SessionPlayer } from './components/SessionPlayer';
+import { BACKEND_URL, HOMEPAGE_URL } from './config/urls';
 import { 
   ArrowLeft, 
   Music, 
-  Sparkles, 
   Heart, 
   CheckCircle2, 
-  RotateCcw, 
-  Radio 
+  RotateCcw 
 } from 'lucide-react';
 
 interface UserSession {
@@ -179,7 +178,7 @@ export const App: React.FC = () => {
     async function loadTracks() {
       try {
         setIsLoadingTracks(true);
-        const url = new URL('http://localhost:5001/api/youtube/search');
+        const url = new URL(`${BACKEND_URL}/api/youtube/search`);
         url.searchParams.set('decade', formativeEra.decade);
         url.searchParams.set('genre', selectedGenre);
 
@@ -217,7 +216,7 @@ export const App: React.FC = () => {
     const nameParam = encodeURIComponent(userName);
     const userParam = encodeURIComponent(userId);
     const roleParam = encodeURIComponent(userRole);
-    window.location.href = `http://localhost:5175/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
+    window.location.href = `${HOMEPAGE_URL}/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
   };
 
   // 1. FULL-SCREEN MUSICIFY PLAYER VIEW

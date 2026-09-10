@@ -9,6 +9,7 @@ import { HelpModal } from './components/HelpModal';
 import { AboutModal } from './components/AboutModal';
 import { RolePortalPlaceholder } from './components/RolePortalPlaceholder';
 import { PostLoginLoader } from './components/PostLoginLoader';
+import { HOMEPAGE_URL, CAREGIVERPAGE_URL, HEALTHWORKER_URL } from './config/urls';
 
 const MainAuthContent: React.FC = () => {
   const { user } = useAuth();
@@ -69,14 +70,20 @@ const MainAuthContent: React.FC = () => {
       const nameParam = encodeURIComponent(currentUser?.name || 'Friend');
       const uidParam = encodeURIComponent(currentUser?.uid || `user_${(currentUser?.name || 'friend').toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
       const roleParam = encodeURIComponent(currentUser?.role || 'patient');
-      // Redirect to patient home screen (/homepage on port 5175) with persistent identity
-      window.location.href = `http://localhost:5175/?userId=${uidParam}&name=${nameParam}&role=${roleParam}`;
+      // Redirect to patient home screen (/homepage) with persistent identity
+      window.location.href = `${HOMEPAGE_URL}/?userId=${uidParam}&name=${nameParam}&role=${roleParam}`;
     } else if (transitionRole === 'caregiver') {
       setIsRedirecting(true);
       const nameParam = encodeURIComponent(currentUser?.name || 'Caregiver');
       const uidParam = encodeURIComponent(currentUser?.uid || `user_${(currentUser?.name || 'caregiver').toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
-      // Redirect to Caregiver Dashboard (/caregiverpage on port 5179)
-      window.location.href = `http://localhost:5179/?userId=${uidParam}&name=${nameParam}&role=caregiver`;
+      // Redirect to Caregiver Dashboard (/caregiverpage)
+      window.location.href = `${CAREGIVERPAGE_URL}/?userId=${uidParam}&name=${nameParam}&role=caregiver`;
+    } else if (transitionRole === 'asha_worker' || (transitionRole as any) === 'health_worker' || (transitionRole as any) === 'HEALTH_WORKER') {
+      setIsRedirecting(true);
+      const nameParam = encodeURIComponent(currentUser?.name || 'Dr. Ananya Roy');
+      const uidParam = encodeURIComponent(currentUser?.uid || `hw_${(currentUser?.name || 'worker').toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
+      // Redirect to Health Worker Clinical Portal (/healthworker)
+      window.location.href = `${HEALTHWORKER_URL}/?userId=${uidParam}&name=${nameParam}&role=HEALTH_WORKER`;
     } else {
       setShowPortalView(true);
     }

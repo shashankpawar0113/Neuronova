@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { CaregiverNavbar } from './components/CaregiverNavbar';
+import { ModernSidebar } from './components/ModernSidebar';
+import { ModernTopHeader } from './components/ModernTopHeader';
+import { ModernPatientDashboard } from './components/ModernPatientDashboard';
 import { UnlinkedEmptyState } from './components/UnlinkedEmptyState';
 import { LinkPatientModal } from './components/LinkPatientModal';
-import { PatientDashboardView } from './components/PatientDashboardView';
+import { CaregiverSettingsModal } from './components/CaregiverSettingsModal';
+import { IncomingCallModal } from './components/IncomingCallModal';
+import { TaskManagerModal } from './components/TaskManagerModal';
+import { VoiceMessagesModal } from './components/VoiceMessagesModal';
+import { caregiverSocketService } from './services/socketService';
 import { CaregiverSession, LinkedPatient, PatientOverview } from './types';
-import { ShieldAlert, RefreshCw } from 'lucide-react';
+import { ShieldAlert, RefreshCw, AlertTriangle, CheckCircle2, Mic, X } from 'lucide-react';
+import { BACKEND_URL, AUTHPAGE_URL } from './config/urls';
 
 const fetchCaregiverSession = (): CaregiverSession => {
   try {
@@ -51,24 +58,32 @@ export const App: React.FC = () => {
   const [overview, setOverview] = useState<PatientOverview | null>(null);
   
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isTaskManagerOpen, setIsTaskManagerOpen] = useState(false);
+  const [isVoiceMessagesOpen, setIsVoiceMessagesOpen] = useState(false);
+  const [unreadVoiceNotesCount, setUnreadVoiceNotesCount] = useState(0);
+  const [missedTasksCount, setMissedTasksCount] = useState(0);
+  const [activeAlert, setActiveAlert] = useState<{ id: string; title: string; message: string; type: 'success' | 'warning' | 'alert' } | null>(null);
+
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isLoadingOverview, setIsLoadingOverview] = useState(false);
+  const [isRefreshingAI, setIsRefreshingAI] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   // 1. Fetch linked patients for this caregiver
   const loadPatients = async () => {
     setIsLoadingPatients(true);
     try {
-      const res = await fetch(`http://localhost:5001/api/caregiver/${encodeURIComponent(session.userId)}/patients`);
+      const res = await fetch(`${BACKEND_URL}/api/caregiver/${encodeURIComponent(session.userId)}/patients`);
       if (res.ok) {
         const data = await res.json();
         const list: LinkedPatient[] = data.patients || [];
         setPatients(list);
 
-        // Auto-select first patient if none selected or selected patient no longer linked
+        // Auto-select first patient (preferring active profile with records)
         if (list.length > 0) {
           if (!selectedPatientId || !list.some(p => p.patientId === selectedPatientId)) {
-            setSelectedPatientId(list[0].patientId);
+            const preferred = list.find(p => p.patientId.includes('kamla')) || list[0];
+            setSelectedPatientId(preferred.patientId);
           }
         } else {
           setSelectedPatientId(null);
@@ -86,46 +101,89 @@ export const App: React.FC = () => {
     loadPatients();
   }, [session.userId]);
 
+  // Load overview function
+  const loadOverview = async (patientId: string) => {
+    setIsLoadingOverview(true);
+    setAuthError(null);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/caregiver/${encodeURIComponent(session.userId)}/patient/${encodeURIComponent(patientId)}/overview`);
+      if (res.status === 403) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Access Denied: You do not have an active link to this patient.');
+      }
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setOverview(data.overview);
+    } catch (err: any) {
+      console.error('Failed to load patient overview:', err);
+      setAuthError(err.message);
+      setOverview(null);
+    } finally {
+      setIsLoadingOverview(false);
+    }
+  };
+
   // 2. Fetch selected patient's overview (with link access control)
   useEffect(() => {
     if (!selectedPatientId) {
       setOverview(null);
       return;
     }
+    loadOverview(selectedPatientId);
+  }, [session.userId, selectedPatientId]);
 
-    let isSubscribed = true;
-    setIsLoadingOverview(true);
-    setAuthError(null);
+  // 3. Real-time WebSocket connection for caregiver events
+  useEffect(() => {
+    const socket = caregiverSocketService.connect(session.userId, 'caregiver');
 
-    fetch(`http://localhost:5001/api/caregiver/${encodeURIComponent(session.userId)}/patient/${encodeURIComponent(selectedPatientId)}/overview`)
-      .then(async res => {
-        if (!isSubscribed) return null;
-        if (res.status === 403) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Access Denied: You do not have an active link to this patient.');
-        }
-        if (!res.ok) {
-          throw new Error(`Server returned HTTP ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (!isSubscribed || !data) return;
-        setOverview(data.overview);
-      })
-      .catch(err => {
-        if (isSubscribed) {
-          console.error('Failed to load patient overview:', err);
-          setAuthError(err.message);
-          setOverview(null);
-        }
-      })
-      .finally(() => {
-        if (isSubscribed) setIsLoadingOverview(false);
+    socket.on('patient:message:new', (data: any) => {
+      setUnreadVoiceNotesCount(prev => prev + 1);
+      setActiveAlert({
+        id: `msg_${Date.now()}`,
+        title: `New Voice Message from ${data.patientName || 'Patient'}`,
+        message: `"${data.transcript || 'Voice note recorded'}"`,
+        type: 'alert',
       });
+    });
+
+    socket.on('patient:task:completed', (data: any) => {
+      setActiveAlert({
+        id: `task_comp_${Date.now()}`,
+        title: 'Task Completed by Patient',
+        message: `${data.title || 'Scheduled routine'} was marked as completed.`,
+        type: 'success',
+      });
+      if (selectedPatientId) {
+        loadOverview(selectedPatientId);
+      }
+    });
+
+    socket.on('patient:task:missed', (data: any) => {
+      setMissedTasksCount(prev => prev + 1);
+      setActiveAlert({
+        id: `task_miss_${Date.now()}`,
+        title: '⚠️ Missed Scheduled Task',
+        message: `"${data.title}" was scheduled for ${data.scheduledTime} and has passed the grace period.`,
+        type: 'warning',
+      });
+    });
+
+    socket.on('healthworker:concern:new', (data: any) => {
+      setActiveAlert({
+        id: `hw_${Date.now()}`,
+        title: '⚠️ Health Worker Clinical Alert',
+        message: `${data.concernType}: ${data.description}`,
+        type: 'warning',
+      });
+    });
 
     return () => {
-      isSubscribed = false;
+      socket.off('patient:message:new');
+      socket.off('patient:task:completed');
+      socket.off('patient:task:missed');
+      socket.off('healthworker:concern:new');
     };
   }, [session.userId, selectedPatientId]);
 
@@ -140,7 +198,7 @@ export const App: React.FC = () => {
   // Handle revoking link
   const handleRevokeLink = async (patientId: string) => {
     try {
-      const res = await fetch('http://localhost:5001/api/caregiver/link/status', {
+      const res = await fetch(`${BACKEND_URL}/api/caregiver/link/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,85 +216,181 @@ export const App: React.FC = () => {
     }
   };
 
+  // Handle on-demand AI Cognitive Analysis Regeneration
+  const handleRefreshAI = async () => {
+    if (!selectedPatientId || !session?.userId || isRefreshingAI) return;
+    setIsRefreshingAI(true);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/api/caregiver/${encodeURIComponent(session.userId)}/patient/${encodeURIComponent(selectedPatientId)}/ai-analysis`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data && data.aiAnalysis) {
+        setOverview(prev => prev ? { ...prev, aiCognitiveAnalysis: data.aiAnalysis } : prev);
+      }
+    } catch (err) {
+      console.error('Failed to regenerate AI cognitive analysis:', err);
+    } finally {
+      setIsRefreshingAI(false);
+    }
+  };
+
   const handleLogout = () => {
     try {
       localStorage.removeItem('neuronova_auth_session');
     } catch (_) {}
-    window.location.href = 'http://localhost:5174/';
+    window.location.href = `${AUTHPAGE_URL}/`;
   };
+
+  const [activeTab, setActiveTab] = useState('analytics');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const currentPatientInfo = patients.find(p => p.patientId === selectedPatientId) || null;
 
-  return (
-    <div className="min-h-screen bg-sky-50/50 text-[#1A202C] flex flex-col font-brand-body relative selection:bg-cosmos-200 selection:text-cosmos-900">
-      
-      {/* Anime meadow photo background — clearly visible with high clarity & reduced white fog */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-40 bg-cover bg-center bg-fixed z-0"
-        style={{ backgroundImage: "url('/meadow-bg.png')" }}
-      />
-      {/* Soft translucent sky-and-meadow ambient tint */}
-      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-white/30 via-transparent to-white/40 z-0" />
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'dashboard') {
+      const el = document.getElementById('vitals-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (['analytics', 'games', 'music', 'routine', 'voice'].includes(tab)) {
+      const el = document.getElementById('activity-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
-      {/* Top Navigation */}
-      <CaregiverNavbar
+  return (
+    <div className="h-screen w-screen overflow-hidden bg-[#F4F2EC] text-[#111625] flex font-brand-body relative selection:bg-[#E86D7C]/25 selection:text-[#111625]">
+      
+      {/* Left Slim Modern Dark Sidebar Rail - FIXED POSITION, DOES NOT SCROLL */}
+      <ModernSidebar
         caregiverName={session.name}
-        patients={patients}
-        selectedPatientId={selectedPatientId}
-        onSelectPatient={(id) => setSelectedPatientId(id)}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
         onOpenLinkModal={() => setIsLinkModalOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onLogout={handleLogout}
       />
 
-      {/* Main Content Body */}
-      <main className="flex-1 flex flex-col relative z-10">
-        {isLoadingPatients ? (
-          <div className="flex-1 flex items-center justify-center p-12">
-            <div className="flex items-center space-x-3 text-forest-700 font-bold">
-              <RefreshCw className="w-6 h-6 animate-spin" />
-              <span>Loading connected loved ones...</span>
-            </div>
-          </div>
-        ) : patients.length === 0 ? (
-          /* Empty state when no patients linked */
-          <UnlinkedEmptyState
-            caregiverName={session.name}
-            onOpenLinkModal={() => setIsLinkModalOpen(true)}
-          />
-        ) : authError ? (
-          /* Access control error display */
-          <div className="max-w-xl mx-auto w-full p-8 mt-12 bg-white rounded-3xl border-2 border-terracotta-200 text-center shadow-warm-sm">
-            <ShieldAlert className="w-12 h-12 text-terracotta-600 mx-auto mb-3" />
-            <h3 className="text-xl font-bold text-terracotta-900 mb-2">
-              Access Restricted
-            </h3>
-            <p className="text-sm text-[#1A202C]/70 mb-5">
-              {authError}
-            </p>
-            <button
-              onClick={() => loadPatients()}
-              className="px-5 py-2.5 rounded-xl bg-forest-600 text-white font-bold text-xs"
-            >
-              Refresh Linked Patients
-            </button>
-          </div>
-        ) : overview && currentPatientInfo ? (
-          /* Primary Patient Dashboard View */
-          <PatientDashboardView
-            overview={overview}
-            patientInfo={currentPatientInfo}
-            onRevokeLink={handleRevokeLink}
-            isLoading={isLoadingOverview}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-12">
-            <div className="flex items-center space-x-3 text-forest-700 font-bold">
-              <RefreshCw className="w-6 h-6 animate-spin" />
-              <span>Fetching patient health vitals...</span>
+      {/* Main Content Area - ONLY THIS SCROLLS */}
+      <div id="main-content-scroll" className="flex-1 h-screen overflow-y-auto overflow-x-hidden min-w-0 bg-[#F4F2EC] custom-scrollbar">
+        {/* Top Header Bar with Patient Dropdown Pill & Controls */}
+        <ModernTopHeader
+          caregiverName={session.name}
+          caregiverId={session.userId}
+          patients={patients}
+          selectedPatientId={selectedPatientId}
+          onSelectPatient={(id) => setSelectedPatientId(id)}
+          onOpenLinkModal={() => setIsLinkModalOpen(true)}
+          onLogout={handleLogout}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          overview={overview}
+          onNavigateTab={(tab, query) => {
+            handleTabChange(tab);
+            if (query !== undefined) setSearchQuery(query);
+          }}
+          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+          onOpenTaskManager={() => setIsTaskManagerOpen(true)}
+          onOpenVoiceNotes={() => setIsVoiceMessagesOpen(true)}
+          unreadVoiceNotesCount={unreadVoiceNotesCount}
+          missedTasksCount={missedTasksCount}
+        />
+
+        {/* Real-time Event Floating Alert Toast */}
+        {activeAlert && (
+          <div className="fixed top-20 right-6 z-50 max-w-md w-full shadow-2xl">
+            <div className={`p-4 rounded-2xl border flex items-start justify-between gap-3 ${
+              activeAlert.type === 'success'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                : activeAlert.type === 'warning'
+                ? 'bg-amber-50 border-amber-300 text-amber-950'
+                : 'bg-pink-50 border-pink-300 text-[#111625]'
+            }`}>
+              <div className="flex items-start gap-3">
+                {activeAlert.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}
+                {activeAlert.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
+                {activeAlert.type === 'alert' && <Mic className="w-5 h-5 text-[#E86D7C] shrink-0 mt-0.5" />}
+                <div>
+                  <h5 className="font-extrabold text-xs sm:text-sm">{activeAlert.title}</h5>
+                  <p className="text-xs opacity-90 mt-0.5">{activeAlert.message}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveAlert(null)}
+                className="p-1 rounded-lg hover:bg-black/10 transition-all cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
-      </main>
+
+        {/* Main Dashboard Canvas Body */}
+        <main className="flex-1 flex flex-col relative z-10 pb-16">
+          {isLoadingPatients ? (
+            <div className="flex-1 flex items-center justify-center p-16">
+              <div className="flex items-center space-x-3 text-stone-600 font-bold">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#E86D7C]" />
+                <span>Loading connected loved ones...</span>
+              </div>
+            </div>
+          ) : patients.length === 0 ? (
+            /* Empty state when no patients linked */
+            <div className="p-8">
+              <UnlinkedEmptyState
+                caregiverName={session.name}
+                onOpenLinkModal={() => setIsLinkModalOpen(true)}
+              />
+            </div>
+          ) : authError ? (
+            /* Access control error display */
+            <div className="max-w-xl mx-auto w-full p-8 mt-12 clay-card text-center border-2 border-pink-200">
+              <ShieldAlert className="w-12 h-12 text-[#E86D7C] mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-[#111625] mb-2">
+                Access Restricted
+              </h3>
+              <p className="text-sm text-stone-500 mb-5">
+                {authError}
+              </p>
+              <button
+                onClick={() => loadPatients()}
+                className="px-5 py-2.5 rounded-full bg-[#111625] text-white font-bold text-xs cursor-pointer hover:bg-[#1A2234]"
+              >
+                Refresh Linked Patients
+              </button>
+            </div>
+          ) : overview && currentPatientInfo ? (
+            /* Primary Modern Patient Dashboard View */
+            <ModernPatientDashboard
+              overview={overview}
+              patientInfo={currentPatientInfo}
+              caregiverId={session.userId}
+              patientId={selectedPatientId || ''}
+              onRefreshAI={handleRefreshAI}
+              isRefreshingAI={isRefreshingAI}
+              onRevokeLink={handleRevokeLink}
+              activeSidebarTab={activeTab}
+              searchFilter={searchQuery}
+              onClearSearch={() => setSearchQuery('')}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-16">
+              <div className="flex items-center space-x-3 text-stone-600 font-bold">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#E86D7C]" />
+                <span>{isLoadingOverview ? 'Loading patient analytics...' : 'Fetching patient health vitals...'}</span>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
 
       {/* Link Patient Modal */}
       <LinkPatientModal
@@ -246,11 +400,40 @@ export const App: React.FC = () => {
         onLinkSuccess={handleLinkSuccess}
       />
 
-      {/* Footer */}
-      <footer className="w-full border-t border-[#E8DFD1] py-5 px-4 text-center text-xs text-[#1A202C]/60 bg-cream-50/50">
-        <p>NeuroNova Caregiver Command Hub • Supporting our devoted family caregivers and elders with dignity & love.</p>
-      </footer>
+      {/* Caregiver Preferences & Clinical Settings Modal */}
+      <CaregiverSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        caregiverName={session.name}
+      />
 
+      {/* WebRTC Real-Time Patient Incoming Call Modal */}
+      <IncomingCallModal
+        currentCaregiverId={session.userId}
+        currentCaregiverName={session.name}
+      />
+
+      {/* Routine & Medication Task Manager Modal */}
+      {selectedPatientId && (
+        <TaskManagerModal
+          isOpen={isTaskManagerOpen}
+          onClose={() => setIsTaskManagerOpen(false)}
+          patientId={selectedPatientId}
+          patientName={currentPatientInfo?.patientName || 'Patient'}
+          currentUserId={session.userId}
+        />
+      )}
+
+      {/* Patient Voice Messages Modal */}
+      <VoiceMessagesModal
+        isOpen={isVoiceMessagesOpen}
+        onClose={() => {
+          setIsVoiceMessagesOpen(false);
+          setUnreadVoiceNotesCount(0);
+        }}
+        caregiverId={session.userId}
+        activePatientId={selectedPatientId || undefined}
+      />
     </div>
   );
 };

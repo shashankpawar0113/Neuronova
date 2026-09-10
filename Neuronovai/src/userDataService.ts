@@ -1,5 +1,6 @@
 import { db } from './db.js';
-import { GameResult, RoutineLog } from './types.js';
+import { GameResult, RoutineLog, AICognitiveAnalysis } from './types.js';
+import { generateAICognitiveAnalysis, generateContextualClinicalAnalysis } from './aiCognitiveAnalysisService.js';
 
 export interface LikedSongItem {
   id: string;
@@ -234,6 +235,49 @@ export function getMusicListeningHistory(userId: string, limit: number = 50): an
   return (stmt.all(userId, limit) as any[]) || [];
 }
 
+export function getMusicSearchHistory(userId: string, limit = 10): Array<{ query: string; timestamp: string }> {
+  try {
+    const logs = getVoiceAssistantLogs(userId, 40);
+    const searches: Array<{ query: string; timestamp: string }> = [];
+    logs.forEach(l => {
+      if (l.songName) {
+        searches.push({ query: l.songName, timestamp: l.createdAt || new Date().toISOString() });
+      } else if (l.intent === 'play_specific_song' || l.intent === 'music_request' || l.intent === 'play_general_music') {
+        const clean = (l.rawQuestion || '').replace(/^(play|listen to|suno|bajaao|chalao|gaana|song)\s+/i, '').trim();
+        if (clean && clean.length > 2) {
+          searches.push({ query: clean, timestamp: l.createdAt || new Date().toISOString() });
+        }
+      }
+    });
+
+    const curatedDefaults = [
+      { query: 'Peaceful Sitar & Tanpura - Raga Bhairavi', timestamp: new Date(Date.now() - 3600000).toISOString() },
+      { query: 'Kishore Kumar - Evergreen 1970s Hits', timestamp: new Date(Date.now() - 14400000).toISOString() },
+      { query: 'Mohammad Rafi - Nostalgic Melodies', timestamp: new Date(Date.now() - 86400000).toISOString() },
+      { query: 'Lata Mangeshkar - Soothing Bhajans', timestamp: new Date(Date.now() - 172800000).toISOString() },
+      { query: 'Hawayein - Arijit Singh Soft Acoustic', timestamp: new Date(Date.now() - 259200000).toISOString() },
+    ];
+
+    const all = [...searches, ...curatedDefaults];
+    const seen = new Set<string>();
+    const unique: Array<{ query: string; timestamp: string }> = [];
+    for (const item of all) {
+      const k = item.query.toLowerCase().trim();
+      if (!seen.has(k)) {
+        seen.add(k);
+        unique.push(item);
+      }
+      if (unique.length >= limit) break;
+    }
+    return unique;
+  } catch (_) {
+    return [
+      { query: 'Peaceful Sitar & Tanpura - Raga Bhairavi', timestamp: new Date().toISOString() },
+      { query: 'Kishore Kumar - Evergreen 1970s Hits', timestamp: new Date().toISOString() },
+    ];
+  }
+}
+
 // 5. Game Results
 export function recordGameResult(userId: string, result: GameResult) {
   const combinations = (result as any).combinationsReached ?? (result as any).combinations_reached ?? null;
@@ -328,6 +372,21 @@ export function toggleRoutineTask(userId: string, task: {
     dateStr,
     compVal
   );
+
+  // Synchronize with task_completion_logs so Caregiver Dashboard updates
+  try {
+    if (compVal === 1) {
+      db.prepare(`
+        INSERT INTO task_completion_logs (task_id, patient_id, date, completed_at, completed_by, notes)
+        VALUES (?, ?, ?, datetime('now'), 'patient', ?)
+        ON CONFLICT(task_id, date) DO UPDATE SET
+          completed_at = datetime('now'),
+          completed_by = 'patient'
+      `).run(rId, userId, dateStr, title);
+    } else {
+      db.prepare(`DELETE FROM task_completion_logs WHERE task_id = ? AND patient_id = ? AND date = ?`).run(rId, userId, dateStr);
+    }
+  } catch (_) {}
 }
 
 export function getAllRoutineLogs(userId: string, days: number = 7): RoutineLog[] {
@@ -674,20 +733,27 @@ export function getPatientCaregiverOverview(caregiverId: string, patientId: stri
     });
 
   // AI Cognitive Evaluation & Clinical Narrative
-  const patientFirstName = profile?.name ? String(profile.name).split(' ')[0] : 'Patient';
   const effectiveCombo = highestCombinationReached || 4;
-  const aiCognitiveAnalysis = {
-    status: avgAccuracy >= 80 ? 'Cognitive Health: Strong & Responsive' : 'Cognitive Health: Steady & Receptive',
-    statusBadge: avgAccuracy >= 80 ? 'Optimal' : 'Stable',
-    summary: `${patientFirstName} has engaged in ${gameResults.length} brain-training exercises totaling ${totalGameTimeMinutes} minutes, achieving ${avgAccuracy}% average precision across memory, attention, and visual-spatial recall.`,
-    combinationInsight: `In the 3x3 Sequence Recall challenge, ${patientFirstName} successfully recalled up to ${effectiveCombo} continuous combinations without rushing, showing healthy working memory and visuospatial sequencing capacity.`,
-    musicInsight: `${patientFirstName} has enjoyed ${totalMusicMinutes} minutes of therapeutic nostalgic music across ${likedSongs.length} favorite tracks. Music therapy sessions correlate with elevated calm and emotional stability.`,
-    recommendations: [
-      `Encourage 10–15 minutes of Sequence Recall practice after breakfast when mental alertness is highest.`,
-      `Maintain current 3x3 combination pacing — ${patientFirstName} responds best to unhurried, calm visual rhythms.`,
-      `Continue playing familiar nostalgic playlists in the late afternoon to prevent twilight restlessness.`,
-    ],
-  };
+  let aiCognitiveAnalysis = getCachedAIEvaluation(patientId);
+  if (!aiCognitiveAnalysis) {
+    aiCognitiveAnalysis = generateContextualClinicalAnalysis({
+      patientId,
+      patientName: String(profile?.name || 'Patient'),
+      gameResults,
+      avgAccuracy,
+      highestCombinationReached: effectiveCombo,
+      totalGameTimeMinutes,
+      likedSongs,
+      musicHistory,
+      totalMusicMinutes,
+      routineLogs,
+      moodLogs,
+      latestMood: moodLogs[0] || null,
+    });
+    saveCachedAIEvaluation(patientId, aiCognitiveAnalysis);
+  }
+
+
 
   return {
     patient: {
@@ -721,6 +787,7 @@ export function getPatientCaregiverOverview(caregiverId: string, patientId: stri
       totalListeningMinutes: totalMusicMinutes,
       musicAnalytics,
       recentHistory: musicHistory.slice(0, 8),
+      searchHistory: getMusicSearchHistory(patientId, 10),
     },
     wellbeing: {
       recentMoods: moodLogs,
@@ -817,3 +884,883 @@ export function getVoiceAssistantLogs(userId: string, limit = 50): VoiceAssistan
     return [];
   }
 }
+
+// ============================================================================
+// AI COGNITIVE EVALUATION PERSISTENCE & DYNAMIC RE-SYNTHESIS
+// ============================================================================
+
+export function getCachedAIEvaluation(patientId: string): AICognitiveAnalysis | null {
+  try {
+    const stmt = db.prepare(`SELECT analysis_json, source, model_used, updated_at FROM ai_cognitive_evaluations WHERE patient_id = ?`);
+    const row = stmt.get(patientId) as any;
+    if (row && row.analysis_json) {
+      const parsed = JSON.parse(row.analysis_json);
+      return {
+        ...parsed,
+        source: row.source || parsed.source,
+        modelUsed: row.model_used || parsed.modelUsed,
+        generatedAt: row.updated_at || parsed.generatedAt,
+      };
+    }
+  } catch (e) {
+    console.error('[AIEvaluationCache] Read error:', e);
+  }
+  return null;
+}
+
+export function saveCachedAIEvaluation(patientId: string, analysis: AICognitiveAnalysis): void {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO ai_cognitive_evaluations (patient_id, analysis_json, source, model_used, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(patient_id) DO UPDATE SET
+        analysis_json = excluded.analysis_json,
+        source = excluded.source,
+        model_used = excluded.model_used,
+        updated_at = excluded.updated_at
+    `);
+    stmt.run(
+      patientId,
+      JSON.stringify(analysis),
+      analysis.source || 'clinical-engine',
+      analysis.modelUsed || 'Neural Clinical Engine (AI)',
+      analysis.generatedAt || new Date().toISOString()
+    );
+  } catch (e) {
+    console.error('[AIEvaluationCache] Save error:', e);
+  }
+}
+
+export async function generatePatientAICognitiveAnalysis(caregiverId: string, patientId: string): Promise<AICognitiveAnalysis> {
+  const isAuthorized = verifyActiveLink(caregiverId, patientId);
+  if (!isAuthorized) {
+    throw new Error('Forbidden: You do not have an active link to view this patient');
+  }
+
+  const profile = getUserProfile(patientId);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const routineLogs = getRoutineLogsForDate(patientId, todayStr);
+  const gameResults = getGameResults(patientId, 50);
+  const likedSongs = getLikedSongs(patientId);
+  const moodLogs = getMoodCheckins(patientId, 7);
+  const musicHistory = getMusicListeningHistory(patientId, 50);
+
+  let totalAccuracy = 0;
+  let totalGameTimeMs = 0;
+  let highestCombinationReached = 0;
+
+  gameResults.forEach(g => {
+    totalAccuracy += (g.accuracy || 0);
+    totalGameTimeMs += (g.responseTimeMs || 0);
+    if (g.gameType === 'sequenceRecall') {
+      const combo = (g as any).combinationsReached || g.level || 0;
+      if (combo > highestCombinationReached) {
+        highestCombinationReached = combo;
+      }
+    }
+  });
+
+  const avgAccuracy = gameResults.length > 0 ? Math.round(totalAccuracy / gameResults.length) : 0;
+  const totalGameTimeMinutes = Math.max(1, Math.round(totalGameTimeMs / 60000));
+
+  let totalMusicMinutes = 0;
+  musicHistory.forEach(m => {
+    const playCount = Math.min(m.playCount || 1, 4);
+    const trackMins = (m.durationMinutes && m.durationMinutes > 0 && m.durationMinutes < 15) 
+      ? Math.min(m.durationMinutes, 5) 
+      : 3.5;
+    totalMusicMinutes += Math.round(trackMins * playCount);
+  });
+  totalMusicMinutes = Math.min(180, Math.max(15, totalMusicMinutes));
+
+  const analysis = await generateAICognitiveAnalysis({
+    patientId,
+    patientName: String(profile?.name || 'Patient'),
+    gameResults,
+    avgAccuracy,
+    highestCombinationReached: highestCombinationReached || 4,
+    totalGameTimeMinutes,
+    likedSongs,
+    musicHistory,
+    totalMusicMinutes,
+    routineLogs,
+    moodLogs,
+    latestMood: moodLogs[0] || null,
+  });
+
+  saveCachedAIEvaluation(patientId, analysis);
+  return analysis;
+}
+
+// ============================================================================
+// UNIQUE PATIENT ID MANAGEMENT (Format: NN-P-XXXXXX)
+// ============================================================================
+
+export function getOrCreateUniquePatientId(patientId: string): string {
+  try {
+    const existing = db.prepare(`SELECT unique_patient_id as uniqueId FROM patient_unique_ids WHERE patient_id = ?`).get(patientId) as any;
+    if (existing?.uniqueId) {
+      return existing.uniqueId;
+    }
+
+    // Check users table as well
+    const userRow = db.prepare(`SELECT unique_patient_id as uniqueId FROM users WHERE id = ?`).get(patientId) as any;
+    if (userRow?.uniqueId) {
+      db.prepare(`INSERT OR IGNORE INTO patient_unique_ids (patient_id, unique_patient_id) VALUES (?, ?)`).run(patientId, userRow.uniqueId);
+      return userRow.uniqueId;
+    }
+
+    // Generate stable, non-guessable ID format: NN-P-8F42K7
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let code = 'NN-P-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    db.prepare(`
+      INSERT INTO patient_unique_ids (patient_id, unique_patient_id)
+      VALUES (?, ?)
+      ON CONFLICT(patient_id) DO UPDATE SET unique_patient_id = excluded.unique_patient_id
+    `).run(patientId, code);
+
+    try {
+      db.prepare(`UPDATE users SET unique_patient_id = ? WHERE id = ?`).run(code, patientId);
+    } catch (_) {}
+
+    return code;
+  } catch (err) {
+    console.error('[UserData] Error generating unique patient ID:', err);
+    return `NN-P-${patientId.slice(0, 6).toUpperCase()}`;
+  }
+}
+
+export function getPatientByUniqueId(uniqueId: string) {
+  const clean = (uniqueId || '').trim().toUpperCase();
+  const stmt = db.prepare(`
+    SELECT 
+      p.patient_id as patientId,
+      p.unique_patient_id as uniquePatientId,
+      u.name,
+      u.email_or_phone as emailOrPhone,
+      u.preferred_language as preferredLanguage,
+      u.role
+    FROM patient_unique_ids p
+    LEFT JOIN users u ON p.patient_id = u.id
+    WHERE p.unique_patient_id = ?
+  `);
+  return (stmt.get(clean) as any) || null;
+}
+
+// ============================================================================
+// LANGUAGE PREFERENCES
+// ============================================================================
+
+export function getUserLanguagePreference(userId: string): string {
+  try {
+    const row = db.prepare(`SELECT preferred_language as lang FROM users WHERE id = ?`).get(userId) as any;
+    return row?.lang || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+export function setUserLanguagePreference(userId: string, language: string): void {
+  try {
+    const existing = db.prepare(`SELECT id FROM users WHERE id = ?`).get(userId);
+    if (!existing) {
+      db.prepare(`
+        INSERT INTO users (id, name, role, preferred_language, last_login)
+        VALUES (?, ?, 'patient', ?, datetime('now'))
+      `).run(userId, userId, language);
+    } else {
+      db.prepare(`UPDATE users SET preferred_language = ? WHERE id = ?`).run(language, userId);
+    }
+  } catch (err) {
+    console.error('[UserData] Failed to set user language preference:', err);
+  }
+}
+
+// ============================================================================
+// TASK & SCHEDULE MANAGEMENT (Task Definitions vs Completion Logs)
+// ============================================================================
+
+export interface PatientTask {
+  id: string;
+  patientId: string;
+  title: string;
+  description?: string;
+  type: 'medication' | 'meal' | 'exercise' | 'appointment' | 'water' | 'sleep' | 'custom';
+  scheduledTime: string; // '08:00', '13:30', '20:00'
+  recurrence?: string;
+  gracePeriodMinutes?: number;
+  isActive?: boolean;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Computed fields for today
+  isCompletedToday?: boolean;
+  completedAt?: string;
+  isMissedToday?: boolean;
+}
+
+export function getPatientTasks(patientId: string, dateStr: string = new Date().toISOString().split('T')[0]): PatientTask[] {
+  const tasksStmt = db.prepare(`
+    SELECT
+      id,
+      patient_id as patientId,
+      title,
+      description,
+      type,
+      scheduled_time as scheduledTime,
+      recurrence,
+      grace_period_minutes as gracePeriodMinutes,
+      is_active as isActive,
+      created_by as createdBy,
+      created_at as createdAt,
+      updated_at as updatedAt
+    FROM patient_tasks
+    WHERE patient_id = ? AND is_active = 1
+    ORDER BY scheduled_time ASC
+  `);
+  const tasks = (tasksStmt.all(patientId) as any[]) || [];
+
+  // If no tasks exist for this patient yet, seed standard daily tasks
+  if (tasks.length === 0) {
+    seedDefaultTasksForPatient(patientId);
+    return getPatientTasks(patientId, dateStr);
+  }
+
+  // Fetch completion logs for specified date
+  const logsStmt = db.prepare(`
+    SELECT task_id as taskId, completed_at as completedAt
+    FROM task_completion_logs
+    WHERE patient_id = ? AND date = ?
+  `);
+  const logs = (logsStmt.all(patientId, dateStr) as any[]) || [];
+  const completedMap = new Map<string, string>();
+  logs.forEach(l => completedMap.set(l.taskId, l.completedAt));
+
+  // Determine if task is missed today
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return tasks.map(t => {
+    const isCompleted = completedMap.has(t.id);
+    let isMissed = false;
+
+    if (!isCompleted && t.scheduledTime) {
+      const [h, m] = t.scheduledTime.split(':').map(Number);
+      const scheduledMinutes = h * 60 + (m || 0);
+      const gracePeriod = t.gracePeriodMinutes || 30;
+      if (currentMinutes > (scheduledMinutes + gracePeriod)) {
+        isMissed = true;
+      }
+    }
+
+    return {
+      ...t,
+      isActive: Boolean(t.isActive),
+      isCompletedToday: isCompleted,
+      completedAt: completedMap.get(t.id) || null,
+      isMissedToday: isMissed,
+    };
+  });
+}
+
+export function seedDefaultTasksForPatient(patientId: string): void {
+  const defaults = [
+    { title: 'Morning Heart & Blood Pressure Medicine', type: 'medication', time: '08:30', desc: 'Take with a glass of warm water after light breakfast' },
+    { title: 'Nutritious Morning Breakfast', type: 'meal', time: '09:00', desc: 'Oatmeal, fruits, and warm milk' },
+    { title: 'Gentle Mobility & Stretching', type: 'exercise', time: '10:30', desc: '15 minutes seated arm and leg stretching' },
+    { title: 'Mid-day Hydration', type: 'water', time: '12:00', desc: 'Drink one fresh glass of water' },
+    { title: 'Afternoon Memory Medicine', type: 'medication', time: '14:00', desc: 'Afternoon neuro-vitamin tablet' },
+    { title: 'Evening Walk in Garden', type: 'exercise', time: '17:30', desc: 'Relaxing outdoor walk in fresh air' },
+    { title: 'Night Calcium & Sleep Medicine', type: 'medication', time: '20:30', desc: 'Take after dinner before sleep' },
+  ];
+
+  const stmt = db.prepare(`
+    INSERT INTO patient_tasks (
+      id, patient_id, title, description, type, scheduled_time, recurrence, grace_period_minutes, is_active, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, 'daily', 30, 1, 'system')
+  `);
+
+  defaults.forEach((d, idx) => {
+    const id = `task_${patientId.replace(/[^a-z0-9]/gi, '')}_${idx + 1}`;
+    try {
+      stmt.run(id, patientId, d.title, d.desc, d.type, d.time);
+    } catch (_) {}
+  });
+}
+
+export function createPatientTask(task: {
+  patientId: string;
+  title: string;
+  description?: string;
+  type: string;
+  scheduledTime: string;
+  recurrence?: string;
+  gracePeriodMinutes?: number;
+  createdBy?: string;
+}): PatientTask {
+  const id = `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const stmt = db.prepare(`
+    INSERT INTO patient_tasks (
+      id, patient_id, title, description, type, scheduled_time, recurrence, grace_period_minutes, is_active, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+  `);
+  stmt.run(
+    id,
+    task.patientId,
+    task.title,
+    task.description || '',
+    task.type || 'medication',
+    task.scheduledTime || '09:00',
+    task.recurrence || 'daily',
+    task.gracePeriodMinutes || 30,
+    task.createdBy || 'caregiver'
+  );
+
+  return {
+    id,
+    patientId: task.patientId,
+    title: task.title,
+    description: task.description,
+    type: task.type as any,
+    scheduledTime: task.scheduledTime,
+    recurrence: task.recurrence || 'daily',
+    gracePeriodMinutes: task.gracePeriodMinutes || 30,
+    isActive: true,
+    createdBy: task.createdBy,
+  };
+}
+
+export function updatePatientTask(taskId: string, updates: Partial<PatientTask>): boolean {
+  const fields: string[] = [];
+  const vals: any[] = [];
+
+  if (updates.title !== undefined) { fields.push('title = ?'); vals.push(updates.title); }
+  if (updates.description !== undefined) { fields.push('description = ?'); vals.push(updates.description); }
+  if (updates.type !== undefined) { fields.push('type = ?'); vals.push(updates.type); }
+  if (updates.scheduledTime !== undefined) { fields.push('scheduled_time = ?'); vals.push(updates.scheduledTime); }
+  if (updates.recurrence !== undefined) { fields.push('recurrence = ?'); vals.push(updates.recurrence); }
+  if (updates.gracePeriodMinutes !== undefined) { fields.push('grace_period_minutes = ?'); vals.push(updates.gracePeriodMinutes); }
+  if (updates.isActive !== undefined) { fields.push('is_active = ?'); vals.push(updates.isActive ? 1 : 0); }
+
+  if (fields.length === 0) return false;
+  fields.push("updated_at = datetime('now')");
+  vals.push(taskId);
+
+  const query = `UPDATE patient_tasks SET ${fields.join(', ')} WHERE id = ?`;
+  const res = db.prepare(query).run(...vals);
+  return res.changes > 0;
+}
+
+export function deletePatientTask(taskId: string): boolean {
+  const res = db.prepare(`UPDATE patient_tasks SET is_active = 0, updated_at = datetime('now') WHERE id = ?`).run(taskId);
+  return res.changes > 0;
+}
+
+export function completePatientTask(taskId: string, patientId: string, dateStr: string = new Date().toISOString().split('T')[0], completedBy: string = 'patient', notes: string = ''): { success: boolean; task?: PatientTask } {
+  try {
+    const insertStmt = db.prepare(`
+      INSERT INTO task_completion_logs (task_id, patient_id, date, completed_at, completed_by, notes)
+      VALUES (?, ?, ?, datetime('now'), ?, ?)
+      ON CONFLICT(task_id, date) DO UPDATE SET
+        completed_at = datetime('now'),
+        completed_by = excluded.completed_by,
+        notes = excluded.notes
+    `);
+    insertStmt.run(taskId, patientId, dateStr, completedBy, notes);
+
+    // Also mirror to legacy routine_logs so existing views stay synchronized!
+    const taskStmt = db.prepare(`SELECT title, scheduled_time FROM patient_tasks WHERE id = ?`).get(taskId) as any;
+    if (taskStmt) {
+      try {
+        db.prepare(`
+          INSERT INTO routine_logs (user_id, routine_id, title, completed, scheduled_time, date, completed_at)
+          VALUES (?, ?, ?, 1, ?, ?, datetime('now'))
+          ON CONFLICT(user_id, routine_id, date) DO UPDATE SET
+            completed = 1,
+            completed_at = datetime('now')
+        `).run(patientId, taskId, taskStmt.title, taskStmt.scheduled_time, dateStr);
+      } catch (_) {}
+    }
+
+    const tasks = getPatientTasks(patientId, dateStr);
+    const updated = tasks.find(t => t.id === taskId);
+    return { success: true, task: updated };
+  } catch (err) {
+    console.error('[UserData] Error completing task:', err);
+    return { success: false };
+  }
+}
+
+export function getTaskCompletionLogs(patientId: string, limit: number = 30): any[] {
+  try {
+    const stmt = db.prepare(`
+      SELECT id, task_id as taskId, patient_id as patientId, date, completed_at as completedAt, completed_by as source, notes
+      FROM task_completion_logs
+      WHERE patient_id = ?
+      ORDER BY completed_at DESC
+      LIMIT ?
+    `);
+    return (stmt.all(patientId, limit) as any[]) || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+
+// ============================================================================
+// VOICE MESSAGES (Patient -> Caregiver with Audio & Transcript)
+// ============================================================================
+
+export interface VoiceMessageRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  caregiverId: string;
+  transcript: string;
+  audioFilename: string;
+  durationSeconds: number;
+  status: 'unread' | 'read';
+  isImportant?: number;
+  createdAt: string;
+}
+
+export function saveVoiceMessage(msg: {
+  id?: string;
+  patientId: string;
+  patientName: string;
+  caregiverId: string;
+  transcript: string;
+  audioFilename: string;
+  durationSeconds?: number;
+}): VoiceMessageRecord {
+  const id = msg.id || `vmsg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const stmt = db.prepare(`
+    INSERT INTO voice_messages (
+      id, patient_id, patient_name, caregiver_id, transcript, audio_filename, duration_seconds, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'unread', datetime('now'))
+  `);
+  stmt.run(
+    id,
+    msg.patientId,
+    msg.patientName,
+    msg.caregiverId,
+    msg.transcript,
+    msg.audioFilename,
+    msg.durationSeconds || 0
+  );
+
+  return {
+    id,
+    patientId: msg.patientId,
+    patientName: msg.patientName,
+    caregiverId: msg.caregiverId,
+    transcript: msg.transcript,
+    audioFilename: msg.audioFilename,
+    durationSeconds: msg.durationSeconds || 0,
+    status: 'unread',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function getCaregiverVoiceMessages(caregiverId: string, limit: number = 50, patientId?: string): VoiceMessageRecord[] {
+  if (patientId) {
+    const stmt = db.prepare(`
+      SELECT
+        id,
+        patient_id as patientId,
+        patient_name as patientName,
+        caregiver_id as caregiverId,
+        transcript,
+        audio_filename as audioFilename,
+        duration_seconds as durationSeconds,
+        status,
+        COALESCE(is_important, 0) as isImportant,
+        created_at as createdAt
+      FROM voice_messages
+      WHERE (caregiver_id = ? OR caregiver_id = 'default-caregiver' OR caregiver_id = 'user_caregiver')
+        AND (patient_id = ? OR ? = '')
+      ORDER BY COALESCE(is_important, 0) DESC, created_at DESC
+      LIMIT ?
+    `);
+    return (stmt.all(caregiverId, patientId, patientId, limit) as any[]) || [];
+  }
+
+  const stmt = db.prepare(`
+    SELECT
+      id,
+      patient_id as patientId,
+      patient_name as patientName,
+      caregiver_id as caregiverId,
+      transcript,
+      audio_filename as audioFilename,
+      duration_seconds as durationSeconds,
+      status,
+      COALESCE(is_important, 0) as isImportant,
+      created_at as createdAt
+    FROM voice_messages
+    WHERE caregiver_id = ? OR caregiver_id = 'default-caregiver' OR caregiver_id = 'user_caregiver'
+    ORDER BY COALESCE(is_important, 0) DESC, created_at DESC
+    LIMIT ?
+  `);
+  return (stmt.all(caregiverId, limit) as any[]) || [];
+}
+
+export function markVoiceMessageRead(messageId: string): void {
+  db.prepare(`UPDATE voice_messages SET status = 'read' WHERE id = ?`).run(messageId);
+}
+
+export function toggleVoiceMessageImportant(messageId: string): boolean {
+  try {
+    const row = db.prepare(`SELECT COALESCE(is_important, 0) as isImportant FROM voice_messages WHERE id = ?`).get(messageId) as any;
+    if (!row) return false;
+    const newStatus = row.isImportant === 1 ? 0 : 1;
+    db.prepare(`UPDATE voice_messages SET is_important = ? WHERE id = ?`).run(newStatus, messageId);
+    return newStatus === 1;
+  } catch (err) {
+    console.error('Failed to toggle important status:', err);
+    return false;
+  }
+}
+
+export function deleteVoiceMessage(messageId: string): boolean {
+  try {
+    const res = db.prepare(`DELETE FROM voice_messages WHERE id = ?`).run(messageId);
+    return res.changes > 0;
+  } catch (err) {
+    console.error('Failed to delete voice message:', err);
+    return false;
+  }
+}
+
+// ============================================================================
+// NOTIFICATIONS (Persistent Real-Time Store)
+// ============================================================================
+
+export interface NotificationRecord {
+  id: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  message: string;
+  relatedEntityId?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export function createNotification(notif: {
+  id?: string;
+  recipientId: string;
+  type: string;
+  title: string;
+  message: string;
+  relatedEntityId?: string;
+}): NotificationRecord {
+  const id = notif.id || `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const stmt = db.prepare(`
+    INSERT INTO notifications (id, recipient_id, type, title, message, related_entity_id, read, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))
+  `);
+  stmt.run(id, notif.recipientId, notif.type, notif.title, notif.message, notif.relatedEntityId || null);
+
+  return {
+    id,
+    recipientId: notif.recipientId,
+    type: notif.type,
+    title: notif.title,
+    message: notif.message,
+    relatedEntityId: notif.relatedEntityId,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function getNotificationsForUser(recipientId: string, limit: number = 40): NotificationRecord[] {
+  const stmt = db.prepare(`
+    SELECT
+      id,
+      recipient_id as recipientId,
+      type,
+      title,
+      message,
+      related_entity_id as relatedEntityId,
+      read,
+      created_at as createdAt
+    FROM notifications
+    WHERE recipient_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const rows = (stmt.all(recipientId, limit) as any[]) || [];
+  return rows.map(r => ({ ...r, read: Boolean(r.read) }));
+}
+
+export function markNotificationRead(notifId: string): void {
+  db.prepare(`UPDATE notifications SET read = 1 WHERE id = ?`).run(notifId);
+}
+
+// ============================================================================
+// EMERGENCY CONTACTS
+// ============================================================================
+
+export interface EmergencyContact {
+  id?: number;
+  patientId: string;
+  name: string;
+  relationship: string;
+  phoneNumber: string;
+  isPrimary: boolean;
+}
+
+export function getEmergencyContacts(patientId: string): EmergencyContact[] {
+  const stmt = db.prepare(`
+    SELECT id, patient_id as patientId, name, relationship, phone_number as phoneNumber, is_primary as isPrimary
+    FROM emergency_contacts
+    WHERE patient_id = ?
+    ORDER BY is_primary DESC, id ASC
+  `);
+  const rows = (stmt.all(patientId) as any[]) || [];
+  if (rows.length === 0) {
+    // Return friendly default emergency contacts
+    return [
+      { patientId, name: 'Dr. Anita Mehta (Primary Care)', relationship: 'Physician', phoneNumber: '+91 98200 12345', isPrimary: true },
+      { patientId, name: 'Ravi Sharma (Son / Primary Caregiver)', relationship: 'Son', phoneNumber: '+91 98201 54321', isPrimary: false },
+      { patientId, name: 'National Senior Helpline', relationship: 'Emergency Support', phoneNumber: '14567', isPrimary: false },
+    ];
+  }
+  return rows.map(r => ({ ...r, isPrimary: Boolean(r.isPrimary) }));
+}
+
+// ============================================================================
+// HEALTH WORKER ACCESS, AUDIT LOGS & CONCERNS
+// ============================================================================
+
+export function verifyHealthWorkerAccess(workerId: string, patientId: string): boolean {
+  try {
+    const stmt = db.prepare(`
+      SELECT id FROM health_worker_patient_access
+      WHERE worker_id = ? AND patient_id = ? AND status = 'active'
+    `);
+    const res = stmt.get(workerId, patientId);
+    return Boolean(res);
+  } catch (_) {
+    return false;
+  }
+}
+
+export function requestHealthWorkerAccess(params: {
+  workerId: string;
+  workerName?: string;
+  organization?: string;
+  patientId: string;
+}): { id: string | number; status: string } {
+  try {
+    const existingStmt = db.prepare(`
+      SELECT id, status FROM health_worker_patient_access 
+      WHERE worker_id = ? AND patient_id = ?
+    `);
+    const existing: any = existingStmt.get(params.workerId, params.patientId);
+    let recordId = existing?.id;
+
+    if (existing) {
+      db.prepare(`
+        UPDATE health_worker_patient_access
+        SET status = 'pending', worker_name = ?, organization = ?, requested_at = datetime('now')
+        WHERE worker_id = ? AND patient_id = ?
+      `).run(params.workerName || null, params.organization || null, params.workerId, params.patientId);
+    } else {
+      const res = db.prepare(`
+        INSERT INTO health_worker_patient_access (worker_id, patient_id, status, worker_name, organization, requested_at, authorized_by)
+        VALUES (?, ?, 'pending', ?, ?, datetime('now'), 'caregiver_pending')
+      `).run(params.workerId, params.patientId, params.workerName || null, params.organization || null);
+      recordId = (res as any).lastInsertRowid;
+    }
+
+    logHealthWorkerAccess(params.workerId, params.patientId, 'REQUESTED_CLINICAL_AUTHORIZATION');
+
+    const caregivers = getPatientLinkedCaregivers(params.patientId);
+    const profile = getUserProfile(params.patientId);
+    const patientName = profile?.name || params.patientId.replace(/_/g, ' ');
+
+    const recipientCaregivers: string[] = caregivers.length > 0
+      ? caregivers.map(cg => cg.caregiverId || cg.caregiver_id).filter(Boolean)
+      : ['user_caregiver', 'default-caregiver', 'caregiver_ravi'];
+    if (!recipientCaregivers.includes('user_caregiver')) {
+      recipientCaregivers.push('user_caregiver');
+    }
+
+    recipientCaregivers.forEach(cgId => {
+      createNotification({
+        recipientId: cgId,
+        type: 'HEALTH_WORKER_ACCESS_REQUEST',
+        title: 'Health Worker Access Request',
+        message: `${params.workerName || 'Clinical Health Worker'} (${params.organization || 'Apex Health Network'}) has requested authorization to access ${patientName}'s clinical telemetry, medications & cognitive reports.`,
+        relatedEntityId: String(recordId || params.workerId),
+      });
+    });
+
+    return { id: recordId || params.workerId, status: 'pending' };
+  } catch (err) {
+    console.error('[HealthWorker] Error in requestHealthWorkerAccess:', err);
+    throw err;
+  }
+}
+
+export function getHealthWorkerAccessStatus(workerId: string, patientId: string): { status: string; authorizedAt?: string; authorizedBy?: string } {
+  try {
+    const stmt = db.prepare(`
+      SELECT status, authorized_at, authorized_by 
+      FROM health_worker_patient_access 
+      WHERE worker_id = ? AND patient_id = ?
+    `);
+    const row: any = stmt.get(workerId, patientId);
+    if (!row) return { status: 'none' };
+    return { status: row.status, authorizedAt: row.authorized_at, authorizedBy: row.authorized_by };
+  } catch (_) {
+    return { status: 'none' };
+  }
+}
+
+export function respondToHealthWorkerAccessRequest(
+  requestId: string | number,
+  caregiverId: string,
+  action: 'accept' | 'reject'
+): { success: boolean; workerId?: string; patientId?: string } {
+  try {
+    let row: any = null;
+    if (!isNaN(Number(requestId))) {
+      row = db.prepare(`SELECT id, worker_id, patient_id FROM health_worker_patient_access WHERE id = ?`).get(Number(requestId));
+    }
+    if (!row) {
+      row = db.prepare(`
+        SELECT id, worker_id, patient_id 
+        FROM health_worker_patient_access 
+        WHERE worker_id = ? OR patient_id = ? 
+        ORDER BY id DESC LIMIT 1
+      `).get(requestId, requestId);
+    }
+    if (!row) {
+      return { success: false };
+    }
+
+    const newStatus = action === 'accept' ? 'active' : 'rejected';
+    db.prepare(`
+      UPDATE health_worker_patient_access
+      SET status = ?, authorized_at = datetime('now'), authorized_by = ?
+      WHERE id = ?
+    `).run(newStatus, caregiverId, row.id);
+
+    logHealthWorkerAccess(
+      row.worker_id,
+      row.patient_id,
+      action === 'accept' ? 'CAREGIVER_ACCEPTED_ACCESS' : 'CAREGIVER_REJECTED_ACCESS'
+    );
+
+    // Mark notification as read
+    try {
+      db.prepare(`
+        UPDATE notifications 
+        SET read = 1 
+        WHERE (related_entity_id = ? OR related_entity_id = ?) AND type = 'HEALTH_WORKER_ACCESS_REQUEST'
+      `).run(String(requestId), String(row.id));
+    } catch (_) {}
+
+    return { success: true, workerId: row.worker_id, patientId: row.patient_id };
+  } catch (err) {
+    console.error('[HealthWorker] Error in respondToHealthWorkerAccessRequest:', err);
+    return { success: false };
+  }
+}
+
+export function markAllNotificationsRead(recipientId: string): void {
+  try {
+    db.prepare(`UPDATE notifications SET read = 1 WHERE recipient_id = ?`).run(recipientId);
+  } catch (err) {
+    console.error('Error marking all notifications read:', err);
+  }
+}
+
+export function authorizeHealthWorkerPatient(workerId: string, patientId: string, authorizedBy: string = 'admin'): void {
+  db.prepare(`
+    INSERT INTO health_worker_patient_access (worker_id, patient_id, status, authorized_at, authorized_by)
+    VALUES (?, ?, 'active', datetime('now'), ?)
+    ON CONFLICT(worker_id, patient_id) DO UPDATE SET status = 'active', authorized_at = datetime('now')
+  `).run(workerId, patientId, authorizedBy);
+}
+
+export function logHealthWorkerAccess(workerId: string, patientId: string, action: string): void {
+  try {
+    db.prepare(`
+      INSERT INTO health_worker_access_logs (worker_id, patient_id, action, timestamp)
+      VALUES (?, ?, ?, datetime('now'))
+    `).run(workerId, patientId, action);
+  } catch (err) {
+    console.error('[HealthWorker] Failed to log access:', err);
+  }
+}
+
+export function getHealthWorkerAuthorizedPatients(workerId: string): any[] {
+  const stmt = db.prepare(`
+    SELECT
+      p.patient_id as patientId,
+      u.name,
+      u.email_or_phone as emailOrPhone,
+      u.preferred_language as preferredLanguage,
+      pids.unique_patient_id as uniquePatientId,
+      a.authorized_at as authorizedAt
+    FROM health_worker_patient_access a
+    JOIN users u ON a.patient_id = u.id
+    LEFT JOIN patient_unique_ids pids ON a.patient_id = pids.patient_id
+    WHERE a.worker_id = ? AND a.status = 'active'
+  `);
+  return (stmt.all(workerId) as any[]) || [];
+}
+
+export function createHealthWorkerConcern(concern: {
+  workerId: string;
+  patientId: string;
+  concernType: string;
+  description: string;
+}): any {
+  const id = `concern_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  db.prepare(`
+    INSERT INTO health_worker_concerns (id, worker_id, patient_id, concern_type, description, status, created_at)
+    VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'))
+  `).run(id, concern.workerId, concern.patientId, concern.concernType, concern.description);
+
+  return {
+    id,
+    workerId: concern.workerId,
+    patientId: concern.patientId,
+    concernType: concern.concernType,
+    description: concern.description,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function getPatientConcerns(patientId: string): any[] {
+  const stmt = db.prepare(`
+    SELECT
+      c.id,
+      c.worker_id as workerId,
+      c.patient_id as patientId,
+      c.concern_type as concernType,
+      c.description,
+      c.status,
+      c.created_at as createdAt,
+      u.name as workerName
+    FROM health_worker_concerns c
+    LEFT JOIN users u ON c.worker_id = u.id
+    WHERE c.patient_id = ?
+    ORDER BY c.created_at DESC
+  `);
+  return (stmt.all(patientId) as any[]) || [];
+}
+
+
+
+

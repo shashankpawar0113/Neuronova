@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { ComputedStats, ProgressSummaryResponse } from './types.js';
 import { generateFallbackSummary } from './fallbackTemplates.js';
+import { NEUROMUSIC_URL, NEUROGAMES_URL } from './config/urls.js';
 
 dotenv.config();
 
@@ -182,6 +183,15 @@ export interface VoiceCompanionContext {
   recentGames?: Array<{ gameType: string; score?: number; accuracy?: number }>;
   recentMusic?: Array<{ title: string; artist?: string }>;
   isHindi?: boolean;
+  weather?: {
+    cityName: string;
+    tempC: number;
+    tempF: number;
+    condition: string;
+    description: string;
+    elderAdviceEn: string;
+    elderAdviceHi: string;
+  };
 }
 
 export interface VoiceCompanionResponse {
@@ -239,6 +249,19 @@ export async function generateVoiceCompanionResponse(
       };
     }
 
+    if (context.weather && (qLower.includes('weather') || qLower.includes('temperature') || qLower.includes('mausam') || qLower.includes('barish') || qLower.includes('rain') || qLower.includes('cold') || qLower.includes('hot') || qLower.includes('outside'))) {
+      const w = context.weather;
+      const en = `In ${w.cityName}, it is currently ${w.description} with a temperature of ${w.tempC}°C (${w.tempF}°F). ${w.elderAdviceEn}`;
+      const hi = `${w.cityName} में आज का मौसम ${w.description} है और तापमान ${w.tempC}°C है। ${w.elderAdviceHi}`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        suggestedAction: null,
+      };
+    }
+
     if (qLower.includes('music') || qLower.includes('song') || qLower.includes('gaana') || qLower.includes('sangeet')) {
       const en = `Opening peaceful morning melodies for you now, ${userName}. Settle back and let the calming music ease your mind.`;
       const hi = `आपके लिए मधुर और शांत संगीत शुरू कर रहे हैं, ${userName}। आराम से बैठिए और संगीत का आनंद लीजिए।`;
@@ -248,7 +271,7 @@ export async function generateVoiceCompanionResponse(
         source: 'fallback',
         suggestedAction: {
           label: 'Open Neuromusic',
-          url: 'http://localhost:5177/',
+          url: `${NEUROMUSIC_URL}/`,
           icon: 'music',
         },
       };
@@ -263,7 +286,7 @@ export async function generateVoiceCompanionResponse(
         source: 'fallback',
         suggestedAction: {
           label: 'Play Neurogames',
-          url: 'http://localhost:5178/',
+          url: `${NEUROGAMES_URL}/`,
           icon: 'game',
         },
       };
@@ -344,6 +367,8 @@ ${routineSummary}
 ${gamesSummary}
 - Music Context (READ CAREFULLY):
 ${musicContext}
+- Patient's Current Local Weather (from OpenWeather API):
+${context.weather ? `In ${context.weather.cityName}, currently ${context.weather.description} at ${context.weather.tempC}°C (${context.weather.tempF}°F). Elder comfort advice: ${context.weather.elderAdviceEn}` : 'Local weather data currently unavailable.'}
 
 User asked: "${q}"
 
@@ -430,12 +455,12 @@ Respond with the JSON object.${isHindi ? ' Remember: displayReply MUST be Englis
           action = {
             label: songCandidate ? `Play: ${songCandidate}` : 'Open Neuromusic',
             url: songCandidate
-              ? `http://localhost:5177/?play=${encodeURIComponent(songCandidate)}`
-              : 'http://localhost:5177/',
+              ? `${NEUROMUSIC_URL}/?play=${encodeURIComponent(songCandidate)}`
+              : `${NEUROMUSIC_URL}/`,
             icon: 'music'
           };
         } else if (askedForGame) {
-          action = { label: 'Play Neurogames', url: 'http://localhost:5178/', icon: 'game' };
+          action = { label: 'Play Neurogames', url: `${NEUROGAMES_URL}/`, icon: 'game' };
         }
 
         return {

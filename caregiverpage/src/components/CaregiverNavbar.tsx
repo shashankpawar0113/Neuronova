@@ -8,6 +8,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { LinkedPatient } from '../types';
+import { NEUROMUSIC_URL } from '../config/urls';
 
 interface CaregiverNavbarProps {
   caregiverName: string;
@@ -88,7 +89,7 @@ export const CaregiverNavbar: React.FC<CaregiverNavbarProps> = ({
         <div className="flex items-center space-x-3">
           {/* Music Manager direct link */}
           <a
-            href={`http://localhost:5177/?name=${encodeURIComponent(caregiverName)}&role=caregiver`}
+            href={`${NEUROMUSIC_URL}/?name=${encodeURIComponent(caregiverName)}&role=caregiver`}
             target="_blank"
             rel="noreferrer"
             className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-cosmos-50 text-cosmos-800 border border-cosmos-200 hover:bg-cosmos-100 text-xs font-bold transition-colors shadow-2xs"

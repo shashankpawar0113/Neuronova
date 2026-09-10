@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Brain
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface HeroActionCardsProps {
   onSelectCard: (cardId: string, title: string, description: string) => void;
@@ -13,12 +14,14 @@ interface HeroActionCardsProps {
 }
 
 export const HeroActionCards: React.FC<HeroActionCardsProps> = ({ onSelectCard, revealDelay = 0 }) => {
+  const { t } = useLanguage();
+
   const cards = [
     {
       id: 'games',
-      title: 'Neurogames',
-      tagline: 'Keep Your Mind Refreshed',
-      description: 'Playful daily memory puzzles and sequence games crafted with joy.',
+      title: t.heroCards.games.title,
+      tagline: t.heroCards.games.tagline,
+      description: t.heroCards.games.description,
       icon: Brain,
       theme: {
         bg: 'bg-forest-50/90',
@@ -30,13 +33,13 @@ export const HeroActionCards: React.FC<HeroActionCardsProps> = ({ onSelectCard, 
         arrowColor: 'text-forest-700',
         badgeBg: 'bg-forest-100 text-forest-800 border-forest-200',
       },
-      gamesList: 'Memory Match • Attention • Sequence • Cultural • Daily Routine',
+      gamesList: t.heroCards.games.badge,
     },
     {
       id: 'routine',
-      title: "Today's Routine & Medicine",
-      tagline: 'Gentle Daily Flow',
-      description: 'Your medicine schedule, water reminders, and peaceful walking times.',
+      title: t.heroCards.routine.title,
+      tagline: t.heroCards.routine.tagline,
+      description: t.heroCards.routine.description,
       icon: CalendarCheck,
       theme: {
         bg: 'bg-river-50/90',
@@ -48,13 +51,13 @@ export const HeroActionCards: React.FC<HeroActionCardsProps> = ({ onSelectCard, 
         arrowColor: 'text-river-700',
         badgeBg: 'bg-river-100 text-river-800 border-river-200',
       },
-      gamesList: '7 daily gentle milestones',
+      gamesList: t.heroCards.routine.badge,
     },
     {
       id: 'vault',
-      title: 'Family Memory Vault',
-      tagline: 'Stories & Loved Ones',
-      description: 'Cherished photos, family recordings, and familiar faces you love.',
+      title: t.heroCards.vault.title,
+      tagline: t.heroCards.vault.tagline,
+      description: t.heroCards.vault.description,
       icon: HeartHandshake,
       theme: {
         bg: 'bg-muga-50/90',
@@ -66,13 +69,13 @@ export const HeroActionCards: React.FC<HeroActionCardsProps> = ({ onSelectCard, 
         arrowColor: 'text-muga-700',
         badgeBg: 'bg-muga-100 text-muga-800 border-muga-200',
       },
-      gamesList: 'Family photos & audio voice notes',
+      gamesList: t.heroCards.vault.badge,
     },
     {
       id: 'music',
-      title: 'Music & Nostalgia',
-      tagline: 'Peaceful Melodies',
-      description: 'Calming instrumental melodies and timeless songs from your favorite eras.',
+      title: t.heroCards.music.title,
+      tagline: t.heroCards.music.tagline,
+      description: t.heroCards.music.description,
       icon: Music,
       theme: {
         bg: 'bg-terracotta-50/90',
@@ -84,7 +87,7 @@ export const HeroActionCards: React.FC<HeroActionCardsProps> = ({ onSelectCard, 
         arrowColor: 'text-terracotta-700',
         badgeBg: 'bg-terracotta-100 text-terracotta-800 border-terracotta-200',
       },
-      gamesList: 'Relaxing ragas, old classics & hymns',
+      gamesList: t.heroCards.music.badge,
     },
   ];
 

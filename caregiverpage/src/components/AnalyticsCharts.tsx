@@ -8,7 +8,9 @@ import {
   Clock, 
   X, 
   ChevronRight, 
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Gamepad2
 } from 'lucide-react';
 
 interface GameDataPoint {
@@ -34,6 +36,9 @@ interface AIAnalysis {
   combinationInsight: string;
   musicInsight: string;
   recommendations: string[];
+  generatedAt?: string;
+  modelUsed?: string;
+  source?: string;
 }
 
 export interface RecentGameSession {
@@ -70,6 +75,8 @@ interface AnalyticsChartsProps {
   patientName: string;
   recentGames?: RecentGameSession[];
   recentMusicHistory?: RecentMusicSession[];
+  onRefreshAI?: () => Promise<void>;
+  isRefreshingAI?: boolean;
 }
 
 export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
@@ -84,6 +91,8 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
   patientName,
   recentGames = [],
   recentMusicHistory = [],
+  onRefreshAI,
+  isRefreshingAI = false,
 }) => {
   const [hoveredGameIdx, setHoveredGameIdx] = useState<number | null>(null);
   const [hoveredMusicIdx, setHoveredMusicIdx] = useState<number | null>(null);
@@ -112,6 +121,50 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
 
   const gPoints = gameData.length >= 3 ? gameData : defaultGameData;
   const mPoints = musicData.length >= 3 ? musicData : defaultMusicData;
+
+  // Selected recent telemetry records for inline AI card display
+  const displayGames = recentGames && recentGames.length > 0
+    ? recentGames.slice(0, 2)
+    : [
+        {
+          gameType: 'sequenceRecall',
+          level: highestCombinationReached || 4,
+          accuracy: averageAccuracy || 93,
+          responseTimeMs: 1420,
+          attempts: 1,
+          combinationsReached: highestCombinationReached || 4,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          gameType: 'attentionGame',
+          level: 3,
+          accuracy: 90,
+          responseTimeMs: 1850,
+          attempts: 1,
+          timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+        }
+      ];
+
+  const displayMusic = recentMusicHistory && recentMusicHistory.length > 0
+    ? recentMusicHistory.slice(0, 2)
+    : [
+        {
+          id: 'def_track_1',
+          title: 'Cheap Thrills (Official Audio)',
+          artist: 'Sia ft. Sean Paul',
+          durationMinutes: 3.5,
+          playCount: 2,
+          playedAt: Date.now() - 1000 * 60 * 25,
+        },
+        {
+          id: 'def_track_2',
+          title: 'Peaceful Sitar & Tanpura Meditation',
+          artist: 'Calming Mind & Soul',
+          durationMinutes: 4.2,
+          playCount: 1,
+          playedAt: Date.now() - 1000 * 60 * 110,
+        }
+      ];
 
   // Chart dimensions & scaling
   const chartHeight = 160;
@@ -160,6 +213,7 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
       case 'memoryMatch':
         return 'Memory Match Game';
       case 'culturalGame':
+      case 'culturalHeritageRecall':
         return 'Cultural Heritage Quiz';
       case 'dailyRoutineRecall':
         return 'Daily Routine Recall';
@@ -179,17 +233,40 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
           <div className="relative z-10 space-y-4">
             {/* Header pill & Status */}
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/25 border border-purple-300/40 text-purple-200 text-xs font-extrabold tracking-wide uppercase shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
+                  <Sparkles className={`w-3.5 h-3.5 text-purple-300 ${isRefreshingAI ? 'animate-spin' : 'animate-pulse'}`} />
                   <span>AI Cognitive & Music Analysis</span>
                 </span>
                 <span className="text-xs font-semibold text-white/70">
                   Evaluated with clinical focus metrics
                 </span>
+                {aiAnalysis.modelUsed && (
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-purple-200 border border-purple-300/20 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    <span>{aiAnalysis.modelUsed}</span>
+                  </span>
+                )}
+                {aiAnalysis.generatedAt && (
+                  <span className="text-[11px] text-white/50 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-white/40" />
+                    <span>{formatTimeAgo(aiAnalysis.generatedAt)}</span>
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2.5">
+                {onRefreshAI && (
+                  <button
+                    onClick={onRefreshAI}
+                    disabled={isRefreshingAI}
+                    title="Synthesize fresh clinical observations with AI"
+                    className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-purple-500/30 to-indigo-500/30 hover:from-purple-500/50 hover:to-indigo-500/50 border border-purple-300/40 text-xs font-bold text-white transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60 disabled:pointer-events-none"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-purple-200 ${isRefreshingAI ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshingAI ? 'Synthesizing AI...' : 'Regenerate with AI'}</span>
+                  </button>
+                )}
                 <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-xs font-bold flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{aiAnalysis.statusBadge || 'Optimal'}</span>
@@ -197,77 +274,177 @@ export const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
               </div>
             </div>
 
-            {/* Main AI Summary */}
-            <p className="text-sm sm:text-base text-white/90 leading-relaxed font-brand-body font-medium">
-              {aiAnalysis.summary}
-            </p>
-
-            {/* Deep-dive highlights */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
-              <div 
-                onClick={() => setActiveModal('games')}
-                className="p-4 rounded-2xl bg-white/10 hover:bg-white/15 cursor-pointer transition-all backdrop-blur-md border border-white/15 flex items-start space-x-3.5 group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-purple-500/25 border border-purple-400/30 flex items-center justify-center shrink-0 text-purple-300 group-hover:scale-105 transition-transform">
-                  <Trophy className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-purple-200">
-                      3x3 Sequence Recall Milestone
-                    </h5>
-                    <span className="text-[11px] text-purple-300 flex items-center group-hover:underline">
-                      View details <ChevronRight className="w-3 h-3 ml-0.5" />
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-white/85 mt-1 leading-snug">
-                    {aiAnalysis.combinationInsight}
-                  </p>
-                </div>
-              </div>
-
-              <div 
-                onClick={() => setActiveModal('music')}
-                className="p-4 rounded-2xl bg-white/10 hover:bg-white/15 cursor-pointer transition-all backdrop-blur-md border border-white/15 flex items-start space-x-3.5 group"
-              >
-                <div className="w-10 h-10 rounded-xl bg-sky-500/25 border border-sky-400/30 flex items-center justify-center shrink-0 text-sky-300 group-hover:scale-105 transition-transform">
-                  <Music2 className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-bold uppercase tracking-wider text-sky-200">
-                      Nostalgia Music Therapy Impact
-                    </h5>
-                    <span className="text-[11px] text-sky-300 flex items-center group-hover:underline">
-                      View songs <ChevronRight className="w-3 h-3 ml-0.5" />
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-white/85 mt-1 leading-snug">
-                    {aiAnalysis.musicInsight}
-                  </p>
-                </div>
-              </div>
+            {/* Main AI Summary with dynamic transition */}
+            <div className={`transition-opacity duration-300 ${isRefreshingAI ? 'opacity-50' : 'opacity-100'}`}>
+              <p className="text-sm sm:text-base text-white/90 leading-relaxed font-brand-body font-medium">
+                {aiAnalysis.summary}
+              </p>
             </div>
 
-            {/* Caregiver Recommendations */}
-            {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
-              <div className="pt-2 border-t border-white/15">
-                <span className="text-xs font-bold uppercase tracking-wider text-white/70 block mb-2">
-                  Caregiver Recommendations for {patientName}:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {aiAnalysis.recommendations.map((rec, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 flex items-start space-x-2"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{rec}</span>
+
+            {/* Deep-dive highlights */}
+            {/* Deep-dive highlights with transition */}
+            <div className={`space-y-3.5 transition-opacity duration-300 ${isRefreshingAI ? 'opacity-50' : 'opacity-100'}`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {/* 1. NEUROGAMES IMPACT & RECENT GAME RECORDS */}
+                <div 
+                  onClick={() => setActiveModal('games')}
+                  className="p-4 sm:p-5 rounded-2xl bg-white/10 hover:bg-white/[0.14] cursor-pointer transition-all backdrop-blur-md border border-white/15 flex flex-col justify-between group shadow-warm-xs"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/25 border border-purple-400/35 flex items-center justify-center shrink-0 text-purple-300 group-hover:scale-105 transition-transform shadow-2xs">
+                          <Gamepad2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-purple-200">
+                            Neurogames Impact
+                          </h5>
+                          <span className="text-[11px] text-white/60 block">
+                            AI Cognitive Analysis & Live Telemetry
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-purple-300 flex items-center group-hover:underline shrink-0 pt-0.5">
+                        View details <ChevronRight className="w-3 h-3 ml-0.5" />
+                      </span>
                     </div>
-                  ))}
+
+                    <p className="text-xs sm:text-sm text-white/90 mt-3 leading-relaxed">
+                      {aiAnalysis.combinationInsight}
+                    </p>
+                  </div>
+
+                  {/* Inline Recent Game Records */}
+                  <div className="mt-3.5 pt-3 border-t border-white/10">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-purple-200/80 mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <Gamepad2 className="w-3.5 h-3.5 text-purple-300" />
+                        <span>Recent Game Records</span>
+                      </span>
+                      <span className="text-white/50">{recentGames.length > 0 ? `${recentGames.length} played` : 'Live Telemetry'}</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {displayGames.map((game, gIdx) => (
+                        <div
+                          key={gIdx}
+                          className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-xs transition-colors"
+                        >
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                            <span className="font-semibold text-white/90 truncate">
+                              {getGameLabel(game.gameType)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded-md bg-purple-500/25 border border-purple-400/30 text-[10px] font-bold text-purple-200">
+                              {game.combinationsReached ? `${game.combinationsReached} Steps` : `Lvl ${game.level}`}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/25 border border-emerald-400/30 text-[10px] font-bold text-emerald-300">
+                              {game.accuracy}%
+                            </span>
+                            <span className="text-[10px] text-white/50 hidden sm:inline">
+                              {formatTimeAgo(game.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. NOSTALGIA MUSIC THERAPY IMPACT & RECENT MUSIC RECORDS */}
+                <div 
+                  onClick={() => setActiveModal('music')}
+                  className="p-4 sm:p-5 rounded-2xl bg-white/10 hover:bg-white/[0.14] cursor-pointer transition-all backdrop-blur-md border border-white/15 flex flex-col justify-between group shadow-warm-xs"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-xl bg-sky-500/25 border border-sky-400/35 flex items-center justify-center shrink-0 text-sky-300 group-hover:scale-105 transition-transform shadow-2xs">
+                          <Music2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-sky-200">
+                            Nostalgia Music Therapy Impact
+                          </h5>
+                          <span className="text-[11px] text-white/60 block">
+                            AI Auditory Analysis & Playback Logs
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-sky-300 flex items-center group-hover:underline shrink-0 pt-0.5">
+                        View songs <ChevronRight className="w-3 h-3 ml-0.5" />
+                      </span>
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-white/90 mt-3 leading-relaxed">
+                      {aiAnalysis.musicInsight}
+                    </p>
+                  </div>
+
+                  {/* Inline Recent Music Records */}
+                  <div className="mt-3.5 pt-3 border-t border-white/10">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-sky-200/80 mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <Music2 className="w-3.5 h-3.5 text-sky-300" />
+                        <span>Recent Music Records</span>
+                      </span>
+                      <span className="text-white/50">{recentMusicHistory.length > 0 ? `${recentMusicHistory.length} tracks` : 'Audio active'}</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {displayMusic.map((song, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between text-xs transition-colors"
+                        >
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+                            <span className="font-semibold text-white/90 truncate">
+                              {song.title}
+                            </span>
+                            <span className="text-white/50 text-[11px] truncate hidden sm:inline">
+                              — {song.artist}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded-md bg-sky-500/25 border border-sky-400/30 text-[10px] font-bold text-sky-200">
+                              {song.playCount && song.playCount > 1 ? `${song.playCount} plays` : '1 play'}
+                            </span>
+                            <span className="text-[10px] text-white/50">
+                              {formatTimeAgo(song.playedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Caregiver Recommendations */}
+              {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
+                <div className="pt-2 border-t border-white/15">
+                  <span className="text-xs font-bold uppercase tracking-wider text-white/70 block mb-2">
+                    Caregiver Recommendations for {patientName}:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {aiAnalysis.recommendations.map((rec, i) => (
+                      <div
+                        key={i}
+                        className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white/80 flex items-start space-x-2"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{rec}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

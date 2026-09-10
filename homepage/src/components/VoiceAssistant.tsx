@@ -12,14 +12,26 @@ import {
   Send,
   AlertCircle,
   RotateCcw,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Radio,
+  CheckCircle2,
+  ArrowLeft,
+  Square,
+  HeartHandshake,
+  Loader2
 } from 'lucide-react';
 import { RoutineItem } from '../types';
+import { BACKEND_URL, NEUROGAMES_URL } from '../config/urls';
+import { LanguageSelectionModal, LanguageCode } from './LanguageSelectionModal';
+import { CallModal } from './CallModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface VoiceAssistantProps {
   userName: string;
   userId?: string;
-  routine: RoutineItem[];
+  routine?: RoutineItem[];
+  onTriggerCall?: () => void;
 }
 
 interface SuggestedAction {
@@ -28,41 +40,16 @@ interface SuggestedAction {
   icon: 'music' | 'game';
 }
 
-export const detectLanguage = (text: string): 'en' | 'hi' => {
-  if (!text) return 'en';
-  if (/[\u0900-\u097F]/.test(text)) return 'hi';
-  const hindiKeywords =
-    /\b(kya|kyun|kaun|kaunsa|kaunsi|kab|kaha|kahan|kaise|karo|kare|karein|karna|kar|hai|ho|hoon|hun|hain|tha|thi|the|hoga|hogi|bajao|bajaao|baja|bajaye|chalao|chalaao|chala|chalaye|suno|sunao|sunaao|gaana|gana|gaane|gane|geet|sangeet|bhajan|dhun|dawai|dawa|dawiyan|goli|khana|khaana|nashta|paani|pani|aaj|kal|parso|din|tarikh|tareekh|samay|waqt|vakt|baje|shuru|band|roko|rok|khatam|khel|khelna|namaste|namaskar|shukriya|dhanyawad|madad|batao|bataiye|bolo|boli|mera|meri|mere|mujhe|mujhko|hum|hume|humko|aap|aapka|aapki|tum|tumhara|shant|sukhad|accha|achha|achhi|theek|kripya|chahiye)\b/i;
-  return hindiKeywords.test(text) ? 'hi' : 'en';
-};
-
-export const translateQueryForDisplay = (text: string): string => {
-  if (!text) return text;
-  if (!/[\u0900-\u097F]/.test(text)) return text;
-  const raw = text.toLowerCase().trim();
-  if (/गाना|गाने|गीत|संगीत|बजाइए|बजाओ|सुनाइए|सुनाओ|चलाइए|चलाओ|लगाइए|लगाओ|भजन|आरती|कीर्तन|धुन|सुनना/.test(raw)) {
-    const cleaned = text
-      .replace(/(?:कृपया|का|की|के|गाना|गाने|गीत|संगीत|ट्रैक|बजाइए|बजाओ|चलाइए|चलाओ|सुनाइए|सुनाओ|लगाइए|लगाओ|सुनना है|सुनना|धुन|भजन|आरती)/gi, '')
-      .replace(/\(.*?\)/g, '')
-      .replace(/\[.*?\]/g, '')
-      .trim();
-    return cleaned ? `Play "${cleaned}"` : 'Play peaceful music';
-  }
-  if (/दवाई|दवा|गोली/.test(raw)) return 'When is my next medicine?';
-  if (/क्या करना है|दिनचर्या|शेड्यूल|काम/.test(raw)) return 'What do I have to do today?';
-  if (/दिन|तारीख|समय|टाइम|बजे/.test(raw)) return 'What day and time is it today?';
-  if (/खेल|गेम|पहेली/.test(raw)) return 'Play gentle games';
-  if (/रोक|बंद|पॉज़|पॉज/.test(raw)) return 'Pause music';
-  if (/शुरू|चालू|फिर/.test(raw)) return 'Resume music';
-  if (/नमस्ते|हेलो/.test(raw)) return 'Hello';
-  return 'Processing your question...';
-};
+export type ActionStage = 'idle' | 'listening' | 'understanding' | 'doing' | 'done';
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   userName,
-  userId,
-  routine,
+  userId = 'default-patient',
+  routine: _routine = [],
+  onTriggerCall: _onTriggerCall,
 }) => {
+  const { language: contextLang, setLanguage: setContextLang } = useLanguage();
+
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -70,26 +57,138 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [interimTranscript, setInterimTranscript] = useState('');
   const [assistantReply, setAssistantReply] = useState<string | null>(null);
   const [suggestedAction, setSuggestedAction] = useState<SuggestedAction | null>(null);
-  const [lastQuery, setLastQuery] = useState<string>('');
   const [micError, setMicError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [textInput, setTextInput] = useState('');
+  const [actionStage, setActionStage] = useState<ActionStage>('idle');
   const [autoRedirectStatus, setAutoRedirectStatus] = useState<string | null>(null);
-  const redirectTimerRef = useRef<any>(null);
 
-  // Auto-detected language ('en' or 'hi')
-  const [selectedLang, setSelectedLang] = useState<'en' | 'hi'>(() => {
+  // Modal & Mode controls
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+
+  // Integrated Caregiver Voice Messaging State
+  const [isCaregiverMessageMode, setIsCaregiverMessageMode] = useState(false);
+  const [caregiverMsgRecording, setCaregiverMsgRecording] = useState(false);
+  const [caregiverMsgSeconds, setCaregiverMsgSeconds] = useState(0);
+  const [caregiverMsgTranscript, setCaregiverMsgTranscript] = useState('');
+  const [caregiverMsgBlob, setCaregiverMsgBlob] = useState<Blob | null>(null);
+  const [caregiverMsgAudioUrl, setCaregiverMsgAudioUrl] = useState<string | null>(null);
+  const [isSendingCaregiverMsg, setIsSendingCaregiverMsg] = useState(false);
+  const [caregiverMsgSentSuccess, setCaregiverMsgSentSuccess] = useState(false);
+  const [caregiverMsgError, setCaregiverMsgError] = useState<string | null>(null);
+
+  const caregiverMediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const caregiverAudioChunksRef = useRef<Blob[]>([]);
+  const caregiverTimerRef = useRef<any>(null);
+  const caregiverRecognitionRef = useRef<any>(null);
+
+  // Language preference ('en' | 'hi' | 'hinglish')
+  const [selectedLang, setSelectedLang] = useState<LanguageCode>(() => {
     try {
-      return (localStorage.getItem('neuronova_voice_lang') as 'en' | 'hi') || 'en';
+      const stored = localStorage.getItem('neuronova_voice_lang') as LanguageCode;
+      return stored && ['en', 'hi', 'hinglish'].includes(stored) ? stored : (contextLang || 'hinglish');
     } catch (_) {
-      return 'en';
+      return contextLang || 'hinglish';
     }
   });
 
-  const selectedLangRef = useRef<'en' | 'hi'>(selectedLang);
+  useEffect(() => {
+    if (contextLang && contextLang !== selectedLang) {
+      setSelectedLang(contextLang);
+      selectedLangRef.current = contextLang;
+    }
+  }, [contextLang]);
+
+  const selectedLangRef = useRef<LanguageCode>(selectedLang);
   useEffect(() => {
     selectedLangRef.current = selectedLang;
   }, [selectedLang]);
+
+  // Hover voice suggestions
+  const [isMicHovered, setIsMicHovered] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+
+  const hoverSuggestions: Record<LanguageCode, string[]> = {
+    hinglish: [
+      'Dawa kab leni hai?',
+      'Shant music play karo',
+      'Aaj ka routine kya hai?',
+      'Caregiver ko call lagao',
+      'Ek pyari si kahani sunao',
+    ],
+    hi: [
+      'मेरी दवाई का समय कब है?',
+      'कोई शांत भजन या संगीत बजाओ',
+      'आज मेरा क्या शेड्यूल है?',
+      'केयरगिवर को कॉल करो',
+      'एक सुंदर कहानी सुनाइए',
+    ],
+    en: [
+      'When is my next medication?',
+      'Play some relaxing music',
+      'What is my routine today?',
+      'Call my caregiver',
+      'Tell me an uplifting story',
+    ],
+  };
+
+  const activeSuggestions = hoverSuggestions[selectedLang] || hoverSuggestions.hinglish;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSuggestionIndex((prev) => (prev + 1) % activeSuggestions.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [activeSuggestions.length]);
+
+  // Check first-time language onboarding and sync with backend
+  useEffect(() => {
+    try {
+      const onboarded = localStorage.getItem('neuronova_language_onboarded');
+      const stored = localStorage.getItem('neuronova_voice_lang');
+      // If already marked onboarded OR has stored voice language, NEVER prompt automatically
+      if (onboarded === 'true' || (stored && ['en', 'hi', 'hinglish'].includes(stored))) {
+        return;
+      }
+    } catch (_) {}
+
+    // Check backend to see if user has already set their preference in the database
+    if (userId) {
+      fetch(`${BACKEND_URL || 'http://localhost:5001'}/api/user/${userId}/language`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.language && ['en', 'hi', 'hinglish'].includes(data.language)) {
+            // Already configured on backend! Save to localStorage and DO NOT open modal.
+            setSelectedLang(data.language);
+            selectedLangRef.current = data.language;
+            try {
+              localStorage.setItem('neuronova_voice_lang', data.language);
+              localStorage.setItem('neuronova_language_onboarded', 'true');
+            } catch (_) {}
+          } else {
+            // Truly first time ever across both localStorage and backend
+            setIsLanguageModalOpen(true);
+          }
+        })
+        .catch(() => {
+          setIsLanguageModalOpen(true);
+        });
+    } else {
+      setIsLanguageModalOpen(true);
+    }
+  }, [userId]);
+
+  // Listen for language modal trigger from System Controls header
+  useEffect(() => {
+    const handleOpenLanguage = () => {
+      setIsLanguageModalOpen(true);
+    };
+    window.addEventListener('neuronova:open-language-modal', handleOpenLanguage);
+    return () => {
+      window.removeEventListener('neuronova:open-language-modal', handleOpenLanguage);
+    };
+  }, []);
 
   const isOpenRef = useRef<boolean>(isOpen);
   useEffect(() => {
@@ -98,17 +197,30 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   const noSpeechRetryCountRef = useRef<number>(0);
   const hasSpokenRef = useRef<boolean>(false);
-
-  const BACKEND_URL = 'http://localhost:5001';
-
   const recognitionRef = useRef<any>(null);
+  const redirectTimerRef = useRef<any>(null);
 
-  // Check Web Speech API availability
+  // Patient coordinates
+  const patientCoordsRef = useRef<{ latitude?: number; longitude?: number }>({});
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          patientCoordsRef.current = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          };
+        },
+        () => {},
+        { timeout: 6000, maximumAge: 600000 }
+      );
+    }
+  }, []);
+
   const isSpeechRecognitionSupported =
     typeof window !== 'undefined' &&
     Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
-  // Ensure voices are loaded by the browser
   useEffect(() => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = () => {
@@ -117,8 +229,8 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   }, []);
 
-  // Text-to-Speech (TTS) synthesizer with gentle, calming voice in English or Hindi
-  const speakText = (text: string, langHint?: 'en' | 'hi', onEnd?: () => void) => {
+  // Text-to-Speech (TTS) synthesizer in English, Hindi, or Hinglish
+  const speakText = (text: string, langHint?: LanguageCode, onEnd?: () => void) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (onEnd) onEnd();
       return;
@@ -130,41 +242,29 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.88; // Calm, unhurried pace specifically calibrated for elders
+      utterance.rate = 0.88; // Gentle elderly pace
       utterance.pitch = 1.0;
 
-      const isHindi = langHint === 'hi' || /[\u0900-\u097F]/.test(text) || selectedLangRef.current === 'hi';
+      const currentL = langHint || selectedLangRef.current;
+      const isHindiScript = /[\u0900-\u097F]/.test(text) || currentL === 'hi';
       const voices = window.speechSynthesis.getVoices();
 
-      if (isHindi) {
+      if (isHindiScript) {
         utterance.lang = 'hi-IN';
         const hindiVoice = voices.find(
           (v) =>
             v.lang.startsWith('hi') ||
-            (v.lang.includes('IN') &&
-              (v.name.includes('Hindi') ||
-                v.name.includes('Kalpana') ||
-                v.name.includes('Hemant') ||
-                v.name.includes('Google') ||
-                v.name.includes('हिन्दी')))
+            (v.lang.includes('IN') && (v.name.includes('Hindi') || v.name.includes('Kalpana') || v.name.includes('हिन्दी')))
         ) || voices.find((v) => v.lang.startsWith('hi'));
-        if (hindiVoice) {
-          utterance.voice = hindiVoice;
-        }
+        if (hindiVoice) utterance.voice = hindiVoice;
       } else {
         utterance.lang = 'en-IN';
         const naturalVoice = voices.find(
           (v) =>
-            (v.lang.startsWith('en') || v.lang.includes('en-IN') || v.lang.includes('en-US')) &&
-            (v.name.includes('Natural') ||
-              v.name.includes('Google') ||
-              v.name.includes('Samantha') ||
-              v.name.includes('India') ||
-              v.name.includes('Female'))
+            (v.lang.startsWith('en') || v.lang.includes('IN')) &&
+            (v.name.includes('Natural') || v.name.includes('India') || v.name.includes('Google') || v.name.includes('Female'))
         ) || voices.find((v) => v.lang.startsWith('en'));
-        if (naturalVoice) {
-          utterance.voice = naturalVoice;
-        }
+        if (naturalVoice) utterance.voice = naturalVoice;
       }
 
       let ended = false;
@@ -182,7 +282,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       window.speechSynthesis.speak(utterance);
 
-      // Fallback timer: word-count duration so onEnd reliably triggers even if browser skips onend
       const wordCount = text.split(/\s+/).filter(Boolean).length;
       const estimatedMs = Math.max(4500, Math.round((wordCount / 2.2) * 1000));
       setTimeout(() => {
@@ -206,16 +305,215 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
-  // Start speech recognition in selected language with auto-silence retry resilience
-  const startListening = (overrideLang?: 'en' | 'hi') => {
+  // ============================================================================
+  // INTEGRATED CAREGIVER VOICE MESSAGING
+  // ============================================================================
+
+  const startCaregiverRecording = async () => {
+    stopSpeaking();
+    setCaregiverMsgError(null);
+    setCaregiverMsgTranscript('');
+    setCaregiverMsgBlob(null);
+    setCaregiverMsgAudioUrl(null);
+    caregiverAudioChunksRef.current = [];
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : '';
+      const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      caregiverMediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          caregiverAudioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const fullBlob = new Blob(caregiverAudioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
+        setCaregiverMsgBlob(fullBlob);
+        setCaregiverMsgAudioUrl(URL.createObjectURL(fullBlob));
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      mediaRecorder.start(250);
+      setCaregiverMsgRecording(true);
+      setCaregiverMsgSeconds(0);
+
+      if (caregiverTimerRef.current) clearInterval(caregiverTimerRef.current);
+      caregiverTimerRef.current = setInterval(() => {
+        setCaregiverMsgSeconds((prev) => prev + 1);
+      }, 1000);
+
+      // Speech Recognition for live transcript
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        caregiverRecognitionRef.current = recognition;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = selectedLangRef.current === 'hi' ? 'hi-IN' : 'en-IN';
+
+        recognition.onresult = (e: any) => {
+          let currentTranscript = '';
+          for (let i = 0; i < e.results.length; i++) {
+            currentTranscript += e.results[i][0].transcript;
+          }
+          setCaregiverMsgTranscript(currentTranscript);
+        };
+
+        recognition.start();
+      }
+    } catch (err: any) {
+      console.error('[Voice Assistant] Caregiver mic access failed:', err);
+      setCaregiverMsgError('Microphone access unavailable. Please check microphone permissions.');
+      setCaregiverMsgRecording(false);
+    }
+  };
+
+  const stopCaregiverRecording = () => {
+    if (caregiverTimerRef.current) {
+      clearInterval(caregiverTimerRef.current);
+      caregiverTimerRef.current = null;
+    }
+    if (caregiverMediaRecorderRef.current && caregiverMediaRecorderRef.current.state === 'recording') {
+      caregiverMediaRecorderRef.current.stop();
+    }
+    if (caregiverRecognitionRef.current) {
+      try {
+        caregiverRecognitionRef.current.stop();
+      } catch (_) {}
+    }
+    setCaregiverMsgRecording(false);
+  };
+
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const sendCaregiverMessage = async () => {
+    if (!caregiverMsgBlob && !caregiverMsgTranscript) {
+      setCaregiverMsgError('Please speak a message before sending.');
+      return;
+    }
+
+    stopCaregiverRecording();
+    setIsSendingCaregiverMsg(true);
+    setCaregiverMsgError(null);
+
+    try {
+      let audioBase64 = '';
+      if (caregiverMsgBlob) {
+        audioBase64 = await blobToBase64(caregiverMsgBlob);
+      }
+
+      const response = await fetch(`${BACKEND_URL || 'http://localhost:5001'}/api/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: userId,
+          patientName: userName,
+          caregiverId: 'user_caregiver',
+          transcript: caregiverMsgTranscript || 'Voice message',
+          audioBase64,
+          durationSeconds: caregiverMsgSeconds || 5,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send voice message');
+      }
+
+      setCaregiverMsgSentSuccess(true);
+
+      // Play spoken confirmation
+      const confirmText =
+        selectedLang === 'hi'
+          ? 'आपका संदेश आपके केयरगिवर को भेज दिया गया है।'
+          : selectedLang === 'hinglish'
+          ? 'Aapka voice message caregiver ko bhej diya gaya hai.'
+          : 'Your voice message has been delivered to your caregiver.';
+      speakText(confirmText, selectedLang);
+
+      // Auto-return smoothly after 2.5s
+      setTimeout(() => {
+        setIsCaregiverMessageMode(false);
+        setCaregiverMsgSentSuccess(false);
+        setCaregiverMsgTranscript('');
+        setCaregiverMsgBlob(null);
+        setCaregiverMsgAudioUrl(null);
+        setCaregiverMsgSeconds(0);
+        setActionStage('idle');
+      }, 2500);
+    } catch (err: any) {
+      console.error('[Voice Assistant] Send voice note error:', err);
+      setCaregiverMsgError('Could not send message. Please check your connection.');
+    } finally {
+      setIsSendingCaregiverMsg(false);
+    }
+  };
+
+  const openIntegratedCaregiverMessenger = () => {
+    if (isListening) {
+      try {
+        if (recognitionRef.current) recognitionRef.current.abort();
+      } catch (_) {}
+      setIsListening(false);
+    }
+    stopSpeaking();
+    setIsCaregiverMessageMode(true);
+    setCaregiverMsgSentSuccess(false);
+    setCaregiverMsgError(null);
+    setCaregiverMsgTranscript('');
+    setCaregiverMsgBlob(null);
+    setCaregiverMsgAudioUrl(null);
+    setCaregiverMsgSeconds(0);
+
+    // Speak natural transition hint then start recording
+    const introText =
+      selectedLang === 'hi'
+        ? 'आप अपना संदेश बोलिए, मैं आपके केयरगिवर को भेज दूँगा।'
+        : selectedLang === 'hinglish'
+        ? 'Aap apna message boliye, main aapke caregiver ko bhej dunga.'
+        : 'Please speak your message for your caregiver.';
+    speakText(introText, selectedLang, () => {
+      startCaregiverRecording();
+    });
+  };
+
+  const closeCaregiverMessageMode = () => {
+    stopCaregiverRecording();
+    setIsCaregiverMessageMode(false);
+    setCaregiverMsgSentSuccess(false);
+    setCaregiverMsgError(null);
+    setCaregiverMsgTranscript('');
+    setCaregiverMsgBlob(null);
+    setCaregiverMsgAudioUrl(null);
+    setCaregiverMsgSeconds(0);
+    setActionStage('idle');
+  };
+
+  // Start speech recognition in selected language
+  const startListening = () => {
     stopSpeaking();
     setMicError(null);
     setInterimTranscript('');
+    setActionStage('listening');
     hasSpokenRef.current = false;
 
     if (!isSpeechRecognitionSupported) {
-      setMicError('Speech recognition is not supported in this browser. Please tap any question below or type your question.');
+      setMicError('Speech recognition is not supported in this browser. Please tap any question below.');
       setIsListening(false);
+      setActionStage('idle');
       return;
     }
 
@@ -229,16 +527,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
       recognition.continuous = false;
       recognition.interimResults = true;
 
-      const langToUse = overrideLang || selectedLangRef.current;
-      // Use hi-IN for Hindi and en-IN for natural Indian/Global English recognition
-      recognition.lang = langToUse === 'hi' ? 'hi-IN' : 'en-IN';
+      // Locale: Hindi (hi-IN) or Indian English/Hinglish (en-IN)
+      recognition.lang = selectedLangRef.current === 'hi' ? 'hi-IN' : 'en-IN';
 
       recognition.onstart = () => {
         setIsListening(true);
         setMicError(null);
+        setActionStage('listening');
       };
 
       recognition.onresult = (event: any) => {
@@ -256,34 +555,21 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         }
 
         if (interim) {
-          // If speech is recognized in Devanagari, avoid flashing Hindi script on screen
-          if (/[\u0900-\u097F]/.test(interim)) {
-            setInterimTranscript('Listening to your voice...');
-          } else {
-            setInterimTranscript(interim);
-          }
+          setInterimTranscript(interim);
         }
 
         if (final) {
           setInterimTranscript('');
           const trimmed = final.trim();
-          // Never display Hindi Devanagari script on screen; translate in background immediately
-          const displayQuery = translateQueryForDisplay(trimmed);
-          setTranscript(`"${displayQuery}"`);
+          setTranscript(`"${trimmed}"`);
           setIsListening(false);
-          const lang = detectLanguage(trimmed);
-          setSelectedLang(lang);
-          selectedLangRef.current = lang;
-          try {
-            localStorage.setItem('neuronova_voice_lang', lang);
-          } catch (_) {}
-          void processUserIntent(trimmed, lang);
+          setActionStage('understanding');
+          void processUserIntent(trimmed);
         }
       };
 
       recognition.onerror = (event: any) => {
         if (event.error === 'no-speech') {
-          // If user hasn't started speaking yet and hasn't dismissed, gently restart listening up to 2 times
           if (isOpenRef.current && !hasSpokenRef.current && noSpeechRetryCountRef.current < 2) {
             noSpeechRetryCountRef.current++;
             try {
@@ -292,13 +578,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             } catch (_) {}
           }
           setIsListening(false);
-          setMicError("I didn't hear any speech. Speak when ready, or choose a question below.");
-        } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setActionStage('idle');
+          setMicError("I couldn't hear you clearly. Tap the microphone or choose a question below.");
+        } else if (event.error === 'not-allowed') {
           setIsListening(false);
-          setMicError('Microphone access was blocked. Please enable microphone permissions in your browser or tap any question below.');
+          setActionStage('idle');
+          setMicError('Microphone permission is blocked. Please enable it in browser settings.');
         } else {
           setIsListening(false);
-          setMicError('Could not capture audio. Please tap to speak again or use the questions below.');
+          setActionStage('idle');
+          setMicError('Could not capture audio. Please tap to speak again.');
         }
       };
 
@@ -306,27 +595,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setIsListening(false);
       };
 
-      recognitionRef.current = recognition;
       recognition.start();
     } catch (err: any) {
-      console.warn('[VoiceAssistant] Failed to start recognition:', err);
       setIsListening(false);
-      setMicError('Microphone is busy or unavailable. You can tap any question below or type.');
+      setActionStage('idle');
+      setMicError('Failed to activate microphone.');
     }
   };
 
   const stopListening = () => {
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch (_) {}
     }
     setIsListening(false);
   };
 
-
-
-  // Manage modal open/close lifecycle
   useEffect(() => {
     if (isOpen) {
       setTranscript('');
@@ -334,640 +619,741 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setAssistantReply(null);
       setSuggestedAction(null);
       setMicError(null);
+      setActionStage('idle');
       noSpeechRetryCountRef.current = 0;
       startListening();
     } else {
       stopListening();
       stopSpeaking();
     }
-
     return () => {
       stopListening();
       stopSpeaking();
     };
   }, [isOpen]);
 
-  // Extract a specific song name from requests like "play Double Take song" or "play Kishore Kumar songs"
-  const extractSongName = (q: string): string => {
-    let cleaned = q
-      .replace(/\(.*?\)/g, '')
-      .replace(/\[.*?\]/g, '')
-      .replace(/^(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?play\s+/i, '')
-      .replace(/^(?:put\s+on|start|listen\s+to)\s+/i, '')
-      .replace(/\s+(?:songs?|tracks?|musics?|videos?)$/i, '')
-      .trim();
-    // Only return if it's a real song name (not a generic "play music" type request)
-    const genericTerms = /^(some\s+)?(music|songs?|song\s+music|tune|tunes|melody|melodies|bhajan|bhajans|raga|sitar|peaceful|relaxing|calming)$/i;
-    return genericTerms.test(cleaned) ? '' : cleaned;
-  };
-
-  // Local keyword fallback (used when backend unreachable)
-  const localFallback = (query: string): { reply: string; spokenReply?: string; action: SuggestedAction | null } => {
-    const q = query.toLowerCase().trim();
-    const songName = extractSongName(query);
-    const isHindi = detectLanguage(query) === 'hi';
-
-    if (songName) {
-      const en = `Playing "${songName}" for you now, ${userName}. Settle back and enjoy.`;
-      const hi = `आपके लिए "${songName}" बजा रहे हैं, ${userName}। आराम से बैठिए और आनंद लीजिए।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: {
-          label: `Play: ${songName}`,
-          url: `http://localhost:5177/?play=${encodeURIComponent(songName)}`,
-          icon: 'music',
-        },
-      };
-    }
-    if (q.includes('music') || q.includes('song') || q.includes('gaana') || q.includes('sangeet')) {
-      const en = `Opening peaceful morning melodies for you now, ${userName}. Settle back and let the soothing music ease your mind.`;
-      const hi = `आपके लिए शांत और मधुर संगीत शुरू कर रहे हैं, ${userName}। आराम से बैठिए और संगीत का आनंद लीजिए।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: { label: 'Open Neuromusic', url: 'http://localhost:5177/', icon: 'music' },
-      };
-    }
-    if (q.includes('game') || q.includes('puzzle') || q.includes('khel')) {
-      const en = `Exercising your brain keeps your mind vibrant and happy, ${userName}! Would you like to play some gentle Neurogames?`;
-      const hi = `दिमागी खेल आपके मन को चुस्त और खुश रखते हैं, ${userName}! क्या आप न्यूरो-गेम्स खेलना चाहेंगे?`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: { label: 'Play Neurogames', url: 'http://localhost:5178/', icon: 'game' },
-      };
-    }
-    if (q.includes('do today') || q.includes('schedule') || q.includes('routine') || q.includes('kya karna')) {
-      const pending = routine.filter((r) => !r.completed);
-      if (pending.length > 0) {
-        const nextItem = pending[0];
-        const en = `Up next at ${nextItem.displayTime} is "${nextItem.title}". ${nextItem.friendlyPrompt || ''} You are doing wonderful today!`;
-        const hi = `अगली गतिविधि ${nextItem.displayTime} पर "${nextItem.title}" है। ${nextItem.friendlyPrompt || ''} आप बहुत अच्छा कर रहे हैं!`;
-        return {
-          reply: en,
-          spokenReply: isHindi ? hi : en,
-          action: null,
-        };
-      }
-      const en = `You have completed all your planned activities for today, ${userName}! Time for peaceful music or rest.`;
-      const hi = `आज के लिए आपकी सभी गतिविधियां पूरी हो चुकी हैं, ${userName}! अब आप शांत संगीत सुन सकते हैं या विश्राम कर सकते हैं।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: null,
-      };
-    }
-    if (q.includes('medicine') || q.includes('pill') || q.includes('tablet') || q.includes('dawai')) {
-      const medItem = routine.find((r) => r.category === 'medicine');
-      if (medItem) {
-        const en = `Your next medicine is scheduled for ${medItem.displayTime} ("${medItem.title}"). Please have it with a warm glass of water.`;
-        const hi = `आपकी अगली दवाई ${medItem.displayTime} ("${medItem.title}") पर है। कृपया इसे पानी के साथ लें।`;
-        return {
-          reply: en,
-          spokenReply: isHindi ? hi : en,
-          action: null,
-        };
-      }
-      const en = `All your regular medicines for right now are taken care of, ${userName}.`;
-      const hi = `अभी के लिए आपकी सभी नियमित दवाइयाँ ली जा चुकी हैं, ${userName}।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: null,
-      };
-    }
-    if (q.includes('day') || q.includes('date') || q.includes('time') || q.includes('today') || q.includes('din') || q.includes('tarikh') || q.includes('samay')) {
-      const now = new Date();
-      const dateStrEn = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-      const timeStrEn = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-      const dateStrHi = now.toLocaleDateString('hi-IN', { weekday: 'long', month: 'long', day: 'numeric' });
-      const timeStrHi = now.toLocaleTimeString('hi-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-      const en = `Today is ${dateStrEn}. The time is currently ${timeStrEn}. The morning is calm and gentle.`;
-      const hi = `आज ${dateStrHi} है। समय लगभग ${timeStrHi} है। आपका दिन शांत और सुखद रहे।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: null,
-      };
-    }
-    if (q.includes('hello') || q.includes('hi') || q.includes('namaste')) {
-      const en = `Hello, ${userName}! It is wonderful to hear your voice. I am right here beside you.`;
-      const hi = `नमस्ते, ${userName}! आपकी आवाज़ सुनकर बहुत खुशी हुई। मैं हमेशा आपके साथ हूँ।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        action: null,
-      };
-    }
-    return {
-      reply: `I am right here beside you to guide you through your routine, music, or brain games. How can I help?`,
-      spokenReply: isHindi ? `मैं आपकी दिनचर्या, दवाइयों, शांत संगीत या खेलों में मदद के लिए यहाँ हूँ।` : `I am right here beside you to guide you through your routine, music, or brain games. How can I help?`,
-      action: null,
-    };
-  };
-
-  // Main intent processor — calls the real AI backend, falls back to local logic
-  const processUserIntent = async (query: string, langHint?: 'en' | 'hi') => {
+  // Main intent processor
+  const processUserIntent = async (query: string) => {
     setIsLoading(true);
+    setActionStage('understanding');
     setAssistantReply(null);
     setSuggestedAction(null);
-    setLastQuery(query);
-
-    const detected = langHint || detectLanguage(query);
-    setSelectedLang(detected);
-    selectedLangRef.current = detected;
-    try {
-      localStorage.setItem('neuronova_voice_lang', detected);
-    } catch (_) {}
-
-    const scheduleAutoNavigation = (action: SuggestedAction | null, originalQuery: string, shouldRedirect: boolean) => {
-      if (!action?.url || !shouldRedirect) {
-        setAutoRedirectStatus(null);
-        return undefined;
-      }
-
-      // Verify that the action or query indicates music or games
-      const q = originalQuery.toLowerCase();
-      const userAskedForMusic =
-        action.icon === 'music' ||
-        q.includes('play') ||
-        q.includes('music') ||
-        q.includes('song') ||
-        q.includes('gaana') ||
-        q.includes('geet') ||
-        q.includes('sangeet') ||
-        q.includes('bhajan') ||
-        q.includes('aarti') ||
-        q.includes('kirtan') ||
-        q.includes('dhun') ||
-        q.includes('bajao') ||
-        q.includes('chalao') ||
-        q.includes('sunao') ||
-        q.includes('lagao') ||
-        q.includes('sunna');
-
-      const userAskedForGame =
-        action.icon === 'game' ||
-        q.includes('game') ||
-        q.includes('puzzle') ||
-        q.includes('khel');
-
-      if (!userAskedForMusic && !userAskedForGame) {
-        // User asked about their routine, day, or general thoughts (e.g. "is there anything left?")
-        // NEVER auto-redirect!
-        setAutoRedirectStatus(null);
-        return undefined;
-      }
-
-      let url = action.url;
-      if (action.icon === 'music' && !url.includes('?play=')) {
-        const songName = extractSongName(originalQuery);
-        if (songName) {
-          url = `http://localhost:5177/?play=${encodeURIComponent(songName)}`;
-        }
-      }
-
-      setAutoRedirectStatus('🎵 Music will start as soon as guidance finishes speaking...');
-
-      // Return callback to execute ONLY after voice speech synthesis has finished!
-      return () => {
-        setAutoRedirectStatus('↗ Opening Neuromusic for you now...');
-        const userParam = encodeURIComponent(userId || 'guest_user');
-        const nameParam = encodeURIComponent(userName || 'Dada Anand');
-        const roleParam = encodeURIComponent('patient');
-        const sep = url.includes('?') ? '&' : '?';
-        const finalUrl = url.includes('userId=')
-          ? url
-          : `${url}${sep}userId=${userParam}&name=${nameParam}&role=${roleParam}`;
-
-        // Directly navigate the active tab so modern browsers NEVER block it as a popup!
-        window.location.href = finalUrl;
-      };
-    };
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch(`${BACKEND_URL}/api/voice-assistant`, {
+      const res = await fetch(`${BACKEND_URL || 'http://localhost:5001'}/api/voice-assistant`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: query,
-          userId: userId || 'default-patient',
+          userId,
           userName,
-          language: detected,
+          language: selectedLangRef.current,
+          latitude: patientCoordsRef.current.latitude,
+          longitude: patientCoordsRef.current.longitude,
         }),
-        signal: controller.signal,
       });
-      clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error(`Backend HTTP ${res.status}`);
 
       const data = await res.json();
-      const isHindi = Boolean(
-        data.isHindi || data.language === 'hi' || /[\u0900-\u097F]/.test(query)
-      );
-      setSelectedLang(isHindi ? 'hi' : 'en');
-      selectedLangRef.current = isHindi ? 'hi' : 'en';
-      try {
-        localStorage.setItem('neuronova_voice_lang', isHindi ? 'hi' : 'en');
-      } catch (_) {}
+      const reply = data.displayReply || data.reply || 'I am right here with you.';
+      const spoken = data.spokenReply || reply;
 
-      // Update transcript with English translated question if returned by backend
-      if (data.translatedQuestion) {
-        setTranscript(`"${data.translatedQuestion}"`);
-      }
-
-      // UI screen display is GUARANTEED 100% English
-      const replyCandidate = data.displayReply || data.reply;
-      const cleanEnglishReply: string =
-        replyCandidate && !/[\u0900-\u097F]/.test(replyCandidate)
-          ? replyCandidate
-          : `I am right here with you, ${userName}. How can I help you today?`;
-      let action: SuggestedAction | null = data.suggestedAction || null;
-
-      const qLower = query.toLowerCase();
-      const transLower = (data.translatedQuestion || '').toLowerCase();
-      const userAskedForMusic =
-        data.suggestedAction?.icon === 'music' ||
-        data.intent === 'play_specific_song' ||
-        data.intent === 'play_general_music' ||
-        Boolean(data.autoRedirect) ||
-        qLower.includes('play') ||
-        qLower.includes('music') ||
-        qLower.includes('song') ||
-        qLower.includes('gaana') ||
-        qLower.includes('geet') ||
-        qLower.includes('sangeet') ||
-        qLower.includes('bhajan') ||
-        qLower.includes('aarti') ||
-        qLower.includes('kirtan') ||
-        qLower.includes('dhun') ||
-        qLower.includes('bajao') ||
-        qLower.includes('chalao') ||
-        qLower.includes('sunao') ||
-        qLower.includes('lagao') ||
-        qLower.includes('sunna') ||
-        transLower.includes('play') ||
-        transLower.includes('music') ||
-        transLower.includes('song') ||
-        transLower.includes('bhajan') ||
-        transLower.includes('aarti') ||
-        transLower.includes('listen');
-
-      const userAskedForGame =
-        data.suggestedAction?.icon === 'game' ||
-        data.intent === 'game_inquiry' ||
-        qLower.includes('game') ||
-        qLower.includes('puzzle') ||
-        qLower.includes('khel') ||
-        transLower.includes('game');
-
-      if (!action && userAskedForMusic) {
-        const trackTitle = data.track?.title ? data.track.title.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim() : '';
-        const rawSong = trackTitle || (data.translatedQuestion ? extractSongName(data.translatedQuestion) : '') || extractSongName(query);
-        const songName = rawSong.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
-        action = {
-          label: songName ? `Play: ${songName}` : 'Open Neuromusic',
-          url: songName ? `http://localhost:5177/?play=${encodeURIComponent(songName)}` : 'http://localhost:5177/',
-          icon: 'music',
-        };
-      }
-
-      const shouldAutoRedirect = Boolean(
-        data.autoRedirect ||
-        (data.source === 'action_execution' && (data.intent === 'play_specific_song' || data.intent === 'play_general_music')) ||
-        (action && (userAskedForMusic || userAskedForGame))
-      );
-
-      setAssistantReply(cleanEnglishReply);
-      setSuggestedAction(action);
-
-      const onSpeechEnd = scheduleAutoNavigation(action, query, shouldAutoRedirect);
-      // Audio speech output in user's spoken language (Hindi if user spoke Hindi)
-      speakText(data.spokenReply || cleanEnglishReply, isHindi ? 'hi' : 'en', onSpeechEnd);
-    } catch (err: any) {
-      console.warn('[VoiceAssistant] Backend unreachable, using local fallback:', err.message || err);
-      // Local fallback so the feature always works even when backend is down
-      const { reply, spokenReply, action } = localFallback(query);
-      const isHindi = detectLanguage(query) === 'hi';
-      setSelectedLang(isHindi ? 'hi' : 'en');
-      selectedLangRef.current = isHindi ? 'hi' : 'en';
       setAssistantReply(reply);
-      setSuggestedAction(action);
+      setSuggestedAction(data.suggestedAction || null);
 
-      const qLower = query.toLowerCase();
-      const askedMusic = (qLower.includes('play') || qLower.includes('start')) && (qLower.includes('music') || qLower.includes('song') || qLower.includes('gaana'));
-      const askedGame = qLower.includes('game') || qLower.includes('puzzle') || qLower.includes('khel');
-      const shouldRedirect = Boolean(action && (askedMusic || askedGame));
-      const onSpeechEnd = scheduleAutoNavigation(action, query, shouldRedirect);
-      speakText(spokenReply || reply, isHindi ? 'hi' : 'en', onSpeechEnd);
+      // Handle Action Directives
+      if (data.actionDirective === 'START_SEQUENTIAL_GAMES') {
+        setActionStage('doing');
+        setAutoRedirectStatus('🎮 Starting your daily cognitive games session...');
+        speakText(spoken, selectedLangRef.current, () => {
+          setTimeout(() => {
+            window.location.href = `${NEUROGAMES_URL}/?mode=sequential&session=new&userId=${encodeURIComponent(userId)}&name=${encodeURIComponent(userName)}`;
+          }, 1200);
+        });
+        return;
+      }
+
+      if (
+        data.actionDirective === 'OPEN_VOICE_MESSENGER' ||
+        query.toLowerCase().includes('message') ||
+        query.toLowerCase().includes('bhejo') ||
+        query.toLowerCase().includes('caregiver ko message')
+      ) {
+        setActionStage('doing');
+        openIntegratedCaregiverMessenger();
+        return;
+      }
+
+      if (data.actionDirective === 'START_CALL') {
+        setActionStage('doing');
+        speakText(spoken, selectedLangRef.current, () => {
+          setIsCallModalOpen(true);
+        });
+        return;
+      }
+
+      if (data.autoRedirect && data.suggestedAction?.url) {
+        setActionStage('doing');
+        setAutoRedirectStatus('↗ Opening for you now...');
+        speakText(spoken, selectedLangRef.current, () => {
+          setTimeout(() => {
+            window.location.href = data.suggestedAction.url;
+          }, 1200);
+        });
+        return;
+      }
+
+      setActionStage('done');
+      speakText(spoken, selectedLangRef.current);
+    } catch (err: any) {
+      console.warn('[Voice Assistant] Backend request failed. Using deterministic fallback.');
+      setActionStage('done');
+      const fallbackReply = selectedLangRef.current === 'hi'
+        ? `मैं आपकी सहायता के लिए यहाँ हूँ, ${userName}।`
+        : selectedLangRef.current === 'hinglish'
+        ? `Main aapke saath hoon, ${userName}. Aap bataiye main kya help karoon?`
+        : `I am right here beside you, ${userName}. How can I assist you today?`;
+
+      setAssistantReply(fallbackReply);
+      speakText(fallbackReply, selectedLangRef.current);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const samplePrompts = [
-    { title: 'What do I have to do today?', sub: 'Check daily schedule & routine' },
-    { title: 'When is my next medicine?', sub: 'Friendly reminder & timing' },
-    { title: 'What day is it today?', sub: 'Gentle date & time orientation' },
-    { title: 'Play peaceful music', sub: 'Calm sitar & relaxation melodies' },
-  ];
-
-  const handleSelectPrompt = (prompt: string) => {
-    stopListening();
-    setTranscript(`"${prompt}"`);
-    setInterimTranscript('');
-    void processUserIntent(prompt);
+  const handleSelectPrompt = (promptText: string) => {
+    if (
+      promptText.includes('मैसेज') ||
+      promptText.toLowerCase().includes('message') ||
+      promptText.toLowerCase().includes('bhejo')
+    ) {
+      openIntegratedCaregiverMessenger();
+      return;
+    }
+    setTranscript(`"${promptText}"`);
+    void processUserIntent(promptText);
   };
 
   const handleSendText = (e: React.FormEvent) => {
     e.preventDefault();
     if (!textInput.trim()) return;
-    stopListening();
-    const query = textInput.trim();
+    const q = textInput.trim();
     setTextInput('');
-    const displayQuery = translateQueryForDisplay(query);
-    setTranscript(`"${displayQuery}"`);
-    setInterimTranscript('');
-    void processUserIntent(query);
+    setTranscript(`"${q}"`);
+    void processUserIntent(q);
+  };
+
+  // Sample prompts localized according to selected language
+  const getLocalizedPrompts = () => {
+    if (selectedLang === 'hi') {
+      return [
+        { title: 'आज मुझे क्या करना है?', sub: 'दैनिक दिनचर्या और काम' },
+        { title: 'मेरी अगली दवाई कब है?', sub: 'दवाई का निर्धारित समय' },
+        { title: 'मैंने दवाई ले ली', sub: 'कार्य पूरा दर्ज करें' },
+        { title: 'मुझे गेम खेलना है', sub: 'दिमागी खेल शुरू करें' },
+        { title: 'केयरगिवर को कॉल करो', sub: 'लाइव कॉल कनेक्ट करें' },
+        { title: 'केयरगिवर को मैसेज भेजो', sub: 'वॉइस मैसेज भेजें' },
+      ];
+    }
+    if (selectedLang === 'hinglish') {
+      return [
+        { title: 'Aaj mujhe kya karna hai?', sub: 'Daily routine schedule' },
+        { title: 'Meri next medicine kab hai?', sub: 'Upcoming medicine time' },
+        { title: 'Maine medicine le li', sub: 'Mark medicine completed' },
+        { title: 'Mujhe game khelna hai', sub: 'Start brain games' },
+        { title: 'Caregiver ko call karo', sub: 'Call your caregiver' },
+        { title: 'Caregiver ko message bhejo', sub: 'Send a voice message' },
+      ];
+    }
+    return [
+      { title: 'What do I have to do today?', sub: "View today's routine" },
+      { title: 'When is my next medicine?', sub: 'Next medication time' },
+      { title: 'I completed my medicine', sub: 'Mark task as completed' },
+      { title: 'I want to play games', sub: 'Start daily brain exercises' },
+      { title: 'Call my caregiver', sub: 'Initiate caregiver call' },
+      { title: 'Send message to caregiver', sub: 'Send a voice recording' },
+    ];
+  };
+
+  const samplePrompts = getLocalizedPrompts();
+
+  const getLanguageLabel = () => {
+    if (selectedLang === 'hi') return 'हिन्दी';
+    if (selectedLang === 'hinglish') return 'Hinglish';
+    return 'English';
   };
 
   return (
     <>
-      {/* 1. Floating Microphone Button with Non-Obtrusive Tooltip */}
-      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40 flex items-center pointer-events-auto group">
-        {/* Subtle Tooltip: ONLY shows when hovering or focusing the mic button, never overlaps or blocks page content */}
-        <div 
-          className="hidden sm:flex items-center space-x-2 mr-3 px-4 py-2 bg-white text-[#1A202C] rounded-2xl shadow-warm-lg border-2 border-forest-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none transition-all duration-200 transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
-          role="tooltip"
-        >
-          <Sparkles className="w-4 h-4 text-forest-600 shrink-0" />
-          <p className="text-xs sm:text-sm font-semibold">
-            Try asking: <span className="text-forest-700 font-bold">"What do I have to do today?"</span>
-          </p>
-        </div>
+      {/* 1. First-Time / On-Demand Language Selection Modal */}
+      <LanguageSelectionModal
+        isOpen={isLanguageModalOpen}
+        currentLanguage={selectedLang}
+        onSelectLanguage={(lang) => {
+          setSelectedLang(lang);
+          selectedLangRef.current = lang;
+          setContextLang(lang);
+        }}
+        onClose={() => {
+          setIsLanguageModalOpen(false);
+          try {
+            localStorage.setItem('neuronova_language_onboarded', 'true');
+            if (selectedLang) {
+              localStorage.setItem('neuronova_voice_lang', selectedLang);
+            }
+          } catch (_) {}
+        }}
+        userId={userId}
+      />
 
+
+      {/* 3. Real-Time WebRTC Call Modal */}
+      <CallModal
+        isOpen={isCallModalOpen}
+        onClose={() => setIsCallModalOpen(false)}
+        patientId={userId}
+        patientName={userName}
+      />
+
+      {/* Floating Action Center (Bottom Right) */}
+      <div
+        className={`fixed bottom-6 right-6 flex items-center gap-3 flex-row-reverse ${isCallModalOpen ? 'z-30' : 'z-40'}`}
+        onMouseEnter={() => setIsMicHovered(true)}
+        onMouseLeave={() => setIsMicHovered(false)}
+      >
         {/* Large Floating Mic Button (64x64px touch target) */}
         <button
           onClick={() => setIsOpen(true)}
-          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-forest-600 hover:bg-forest-700 text-white flex items-center justify-center shadow-warm-lg hover:shadow-2xl active:scale-95 transition-all duration-300 border-4 border-[#FAF7F2] relative focus-visible:ring-4 focus-visible:ring-forest-400 cursor-pointer shrink-0"
-          aria-label="Open Voice Assistant. Try asking: What do I have to do today?"
+          onFocus={() => setIsMicHovered(true)}
+          onBlur={() => setIsMicHovered(false)}
+          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white flex items-center justify-center shadow-2xl active:scale-95 transition-all duration-300 border-4 border-white relative focus-visible:ring-4 focus-visible:ring-amber-400 cursor-pointer shrink-0 group"
+          aria-label="Open Voice Assistant"
           title="Voice Assistant - Tap to speak"
         >
-          {/* Subtle warm animated pulsing aura */}
-          <span className="absolute inset-0 rounded-full bg-forest-500 opacity-25 animate-ping pointer-events-none" />
+          <span className="absolute inset-0 rounded-full bg-amber-400 opacity-30 animate-ping pointer-events-none" />
           <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:scale-110 transition-transform duration-200" />
         </button>
+
+        {/* Hover Suggestion Bubble: "Try asking: ..." */}
+        <div
+          className={`transition-all duration-300 transform group-hover:opacity-100 group-hover:translate-x-0 group-hover:scale-100 group-hover:pointer-events-auto ${
+            isMicHovered
+              ? 'opacity-100 translate-x-0 scale-100 pointer-events-auto'
+              : 'opacity-0 translate-x-3 scale-95 pointer-events-none'
+          }`}
+          aria-live="polite"
+        >
+          <div
+            onClick={() => setIsOpen(true)}
+            className="cursor-pointer bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl border border-amber-200/90 text-slate-800 flex flex-col gap-1 min-w-[210px] max-w-[290px] relative hover:border-amber-400 transition-colors"
+          >
+            {/* Header: Sparkles + "Try asking:" */}
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 tracking-wide uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+              <span>Try asking:</span>
+            </div>
+
+            {/* Dynamic rotating suggestion */}
+            <p className="text-sm font-bold text-slate-800 leading-snug">
+              "{activeSuggestions[suggestionIndex % activeSuggestions.length]}"
+            </p>
+
+            {/* Hint */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-amber-100/70">
+              <span className="text-amber-600 font-semibold">Tap to speak</span>
+              <span>NeuroNova</span>
+            </div>
+
+            {/* Speech bubble arrow pointing right towards the mic */}
+            <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-t border-r border-amber-200/90 rotate-45" />
+          </div>
+        </div>
       </div>
 
-      {/* 2. Warm Bottom Sheet / Listening Overlay */}
+      {/* Main Voice Assistant Modal */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-end justify-center transition-opacity p-0 sm:p-4"
+          className={`fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn ${isCallModalOpen ? 'z-30' : 'z-50'}`}
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="w-full max-w-2xl bg-[#FAF7F2] rounded-t-3xl sm:rounded-3xl border-t sm:border-2 border-forest-300 p-6 sm:p-8 shadow-2xl animate-slide-up flex flex-col max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-2xl bg-gradient-to-b from-white to-amber-50/40 rounded-t-3xl sm:rounded-3xl border-t sm:border-2 border-amber-200 p-6 sm:p-8 shadow-2xl animate-slide-up flex flex-col max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="voice-assistant-title"
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#E8DFD1] pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-2xl bg-forest-100 border border-forest-300 flex items-center justify-center text-forest-700 shadow-xs">
+            <div className="flex items-center justify-between border-b border-amber-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md">
                   <MessageSquareHeart className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 id="voice-assistant-title" className="text-xl sm:text-2xl font-extrabold text-[#1A202C] font-brand-heading">
+                  <h3 id="voice-assistant-title" className="text-xl sm:text-2xl font-bold text-slate-900 font-brand">
                     NeuroNova Voice Companion
                   </h3>
-                  <p className="text-xs sm:text-sm text-forest-700 font-semibold font-brand-body">
-                    Always here to listen and guide you gently
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-600 font-medium">
+                      {selectedLang === 'hi' ? 'हमेशा आपके साथ' : 'Always here to listen and assist you'}
+                    </span>
+                    <button
+                      onClick={() => setIsLanguageModalOpen(true)}
+                      className="text-xs px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold flex items-center gap-1 transition-colors"
+                    >
+                      <Globe className="w-3 h-3" />
+                      <span>Language: {getLanguageLabel()}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Close Button */}
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-cream-200 hover:bg-cream-300 text-[#1A202C] flex items-center justify-center transition-colors cursor-pointer"
+                className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
                 aria-label="Close voice assistant"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Listening / Speaking State Box */}
-            <div className="my-5 py-6 bg-white rounded-3xl border border-forest-200/80 shadow-inner flex flex-col items-center justify-center px-4 text-center">
-              {isListening ? (
-                <>
-                  {/* Visualizer Waveform Bars */}
-                  <div className="flex items-center justify-center space-x-2 h-14 mb-4">
-                    <span className="w-2.5 bg-forest-600 rounded-full animate-voice-bar-1" />
-                    <span className="w-2.5 bg-forest-500 rounded-full animate-voice-bar-2" />
-                    <span className="w-2.5 bg-muga-500 rounded-full animate-voice-bar-3" />
-                    <span className="w-2.5 bg-river-500 rounded-full animate-voice-bar-4" />
-                    <span className="w-2.5 bg-forest-600 rounded-full animate-voice-bar-5" />
-                    <span className="w-2.5 bg-muga-400 rounded-full animate-voice-bar-6" />
-                  </div>
-                  <p className="text-xl font-bold text-forest-800 font-brand-heading">
-                    Listening to your voice...
-                  </p>
-                  <p className="text-sm text-[#1A202C]/70 font-brand-body mt-1">
-                    {interimTranscript ? (
-                      <span className="text-forest-700 font-semibold italic">"{interimTranscript}..."</span>
-                    ) : (
-                      'Speak naturally. There is no hurry.'
-                    )}
-                  </p>
-                </>
-              ) : micError ? (
-                <div className="flex flex-col items-center px-4 py-2">
-                  <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 mb-2">
-                    <AlertCircle className="w-6 h-6" />
-                  </div>
-                  <p className="text-sm font-semibold text-[#1A202C] max-w-md">
-                    {micError}
-                  </p>
+            {isCaregiverMessageMode ? (
+              /* Integrated Caregiver Voice Messenger View */
+              <div className="my-4 flex flex-col items-center animate-fadeIn">
+                {/* Mode Top Bar */}
+                <div className="w-full flex items-center justify-between pb-3 border-b border-amber-200/70 mb-4">
                   <button
-                    onClick={() => startListening()}
-                    className="mt-3 px-4 py-1.5 rounded-xl bg-forest-600 text-white text-xs font-bold flex items-center space-x-1.5 hover:bg-forest-700 transition-colors cursor-pointer"
+                    type="button"
+                    onClick={closeCaregiverMessageMode}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-amber-400 transition-colors cursor-pointer"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Try Microphone Again</span>
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>{selectedLang === 'hi' ? 'वापस' : 'Back'}</span>
                   </button>
-                </div>
-              ) : transcript ? (
-                <div className="w-full text-left px-2 sm:px-4">
-                  <span className="text-xs font-bold text-forest-700 uppercase tracking-wider block mb-1">
-                    You asked:
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100/90 px-3.5 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                    <HeartHandshake className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{selectedLang === 'hi' ? 'केयरगिवर को वॉइस मैसेज' : 'Voice Message to Caregiver'}</span>
                   </span>
-                  <p className="text-lg font-bold text-[#1A202C] font-brand-heading italic mb-4">
-                    {transcript}
-                  </p>
+                  <div className="w-16" />
+                </div>
 
-                  {/* Loading spinner while waiting for AI response */}
-                  {isLoading && (
-                    <div className="flex flex-col items-center py-6 space-y-3">
-                      <div className="flex items-center space-x-1.5">
-                        <span className="w-2 h-2 rounded-full bg-forest-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2 h-2 rounded-full bg-forest-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2 h-2 rounded-full bg-forest-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                {caregiverMsgSentSuccess ? (
+                  <div className="w-full py-8 px-6 bg-emerald-50 rounded-3xl border-2 border-emerald-300 text-center flex flex-col items-center gap-3 animate-fadeIn">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-bounce">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+                    <h4 className="text-xl font-black text-emerald-950 font-brand">
+                      {selectedLang === 'hi' ? 'संदेश सफलतापूर्वक भेज दिया गया!' : 'Message Sent to Caregiver!'}
+                    </h4>
+                    <p className="text-sm font-semibold text-emerald-800 max-w-md">
+                      {selectedLang === 'hi'
+                        ? 'आपका वॉइस नोट आपके केयरगिवर के डैशबोर्ड पर सुरक्षित रूप से पहुँच गया है।'
+                        : 'Your voice note and speech transcript have been safely delivered to your caregiver.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={closeCaregiverMessageMode}
+                      className="mt-3 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+                    >
+                      {selectedLang === 'hi' ? 'वापस जाएँ (Done)' : 'Return to Companion'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full flex flex-col items-center gap-4">
+                    {/* Big Interactive Recording Button */}
+                    <div className="relative flex flex-col items-center my-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (caregiverMsgRecording) {
+                            stopCaregiverRecording();
+                          } else {
+                            startCaregiverRecording();
+                          }
+                        }}
+                        className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center transition-all duration-300 border-4 shadow-2xl active:scale-95 cursor-pointer relative ${
+                          caregiverMsgRecording
+                            ? 'bg-gradient-to-tr from-rose-500 to-amber-500 border-white text-white animate-pulse'
+                            : 'bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-200 text-white hover:scale-105'
+                        }`}
+                        title={caregiverMsgRecording ? 'Tap to finish recording' : 'Tap to start recording'}
+                      >
+                        {caregiverMsgRecording && (
+                          <span className="absolute inset-0 rounded-full bg-rose-400 opacity-40 animate-ping pointer-events-none" />
+                        )}
+                        {caregiverMsgRecording ? (
+                          <>
+                            <Square className="w-10 h-10 text-white fill-current mb-1" />
+                            <span className="text-[11px] font-black uppercase tracking-wider">Tap to Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="w-10 h-10 text-white mb-1" />
+                            <span className="text-[11px] font-black uppercase tracking-wider">Tap to Speak</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Elapsed Timer / Status Pill */}
+                      <div className="mt-3 flex items-center gap-2">
+                        {caregiverMsgRecording ? (
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-xs font-bold border border-rose-200 animate-pulse">
+                            <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                            Recording Live: {Math.floor(caregiverMsgSeconds / 60)}:{String(caregiverMsgSeconds % 60).padStart(2, '0')}s
+                          </span>
+                        ) : caregiverMsgSeconds > 0 ? (
+                          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                            Recorded: {caregiverMsgSeconds}s
+                          </span>
+                        ) : (
+                          <span className="text-xs font-semibold text-slate-500">
+                            {selectedLang === 'hi' ? 'बोलने के लिए माइक दबाएँ' : 'Tap microphone to speak'}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-forest-700 font-semibold">
-                        Thinking of a gentle reply...
+                    </div>
+
+                    {/* Live Transcript / Speech Bubble */}
+                    <div className="w-full p-4 rounded-2xl bg-white border border-amber-200 shadow-sm text-left">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-1.5">
+                        <span className="uppercase tracking-wider">
+                          {selectedLang === 'hi' ? 'आपका संदेश:' : 'Your spoken message:'}
+                        </span>
+                        {caregiverMsgAudioUrl && (
+                          <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Audio recorded</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-base sm:text-lg font-medium text-slate-800 italic min-h-[52px] leading-relaxed">
+                        {caregiverMsgTranscript ? (
+                          `"${caregiverMsgTranscript}"`
+                        ) : caregiverMsgRecording ? (
+                          <span className="text-amber-600 font-semibold animate-pulse">
+                            {selectedLang === 'hi' ? 'सुन रहे हैं... बोलिए...' : 'Listening... Speak your message naturally...'}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-normal">
+                            {selectedLang === 'hi'
+                              ? 'माइक दबाकर बोलिए (जैसे "राहुल, मैं ठीक हूँ, बस याद आ रही थी")'
+                              : 'Tap microphone and speak (e.g. "Rahul, I took my medicines and am doing fine")'}
+                          </span>
+                        )}
                       </p>
                     </div>
-                  )}
 
-                  {assistantReply && (
-                    <div className="p-4 rounded-2xl bg-forest-50 border border-forest-200 flex flex-col space-y-3">
-                      <div className="flex items-start justify-between space-x-3">
-                        <div className="flex items-start space-x-3">
-                          <Volume2 className="w-6 h-6 text-forest-600 shrink-0 mt-0.5" />
-                          <p className="text-base sm:text-lg font-semibold text-forest-900 leading-relaxed font-brand-body">
-                            {assistantReply}
-                          </p>
-                        </div>
-                        {/* Audio replay / mute toggle */}
+                    {/* Error Banner if any */}
+                    {caregiverMsgError && (
+                      <div className="w-full p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{caregiverMsgError}</span>
+                      </div>
+                    )}
+
+                    {/* Caregiver Messenger Actions */}
+                    <div className="w-full pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
                         <button
-                          onClick={() => {
-                            if (isSpeaking) {
-                              stopSpeaking();
-                            } else {
-                              speakText(assistantReply);
-                            }
-                          }}
-                          className="p-2 rounded-xl bg-white border border-forest-200 text-forest-700 hover:bg-forest-100 transition-colors shrink-0 cursor-pointer"
-                          title={isSpeaking ? 'Mute speech' : 'Replay voice'}
+                          type="button"
+                          onClick={closeCaregiverMessageMode}
+                          className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
                         >
-                          {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                          {selectedLang === 'hi' ? 'रद्द करें' : 'Cancel'}
                         </button>
+                        {(caregiverMsgTranscript || caregiverMsgBlob) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              stopCaregiverRecording();
+                              setCaregiverMsgTranscript('');
+                              setCaregiverMsgBlob(null);
+                              setCaregiverMsgAudioUrl(null);
+                              setCaregiverMsgSeconds(0);
+                              startCaregiverRecording();
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{selectedLang === 'hi' ? 'फिर से बोलें' : 'Re-record'}</span>
+                          </button>
+                        )}
                       </div>
 
-                      {/* Direct App Link Action Card (e.g. Neuromusic or Neurogames) */}
-                      {suggestedAction && (
-                        <div className="pt-2 border-t border-forest-200/60 flex flex-col items-end space-y-1">
-                          <button
-                            onClick={() => {
-                              let url = suggestedAction.url;
-                              if (suggestedAction.icon === 'music') {
-                                const cleaned = lastQuery
-                                  .replace(/^(please\s+)?(can\s+you\s+)?play\s+/i, '')
-                                  .replace(/^(put\s+on|start|play\s+song)\s+/i, '')
-                                  .trim();
-                                const generic = /^(some\s+)?(music|songs?|tune|melody|bhajan|raga|sitar|peaceful|relaxing|calming)$/i;
-                                if (cleaned && !generic.test(cleaned)) {
-                                  url = `http://localhost:5177/?play=${encodeURIComponent(cleaned)}`;
+                      <button
+                        type="button"
+                        onClick={sendCaregiverMessage}
+                        disabled={isSendingCaregiverMsg || (!caregiverMsgTranscript && !caregiverMsgBlob)}
+                        className="w-full sm:w-auto min-h-[48px] px-8 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:opacity-40 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+                      >
+                        {isSendingCaregiverMsg ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>{selectedLang === 'hi' ? 'भेज रहे हैं...' : 'Sending message...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            <span>{selectedLang === 'hi' ? 'केयरगिवर को भेजें' : 'Send to Caregiver'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Standard Voice Assistant Pipeline View */
+              <>
+                {/* Stage Progress Pipeline Indicator */}
+                <div className="mt-4 px-2 flex items-center justify-between text-xs font-bold text-slate-500 bg-white/70 rounded-xl p-2 border border-amber-100">
+                  <div className={`flex items-center gap-1.5 ${actionStage === 'listening' ? 'text-amber-600 font-extrabold' : ''}`}>
+                    <Mic className="w-3.5 h-3.5" />
+                    <span>1. Listening</span>
+                  </div>
+                  <span className="text-slate-300">→</span>
+                  <div className={`flex items-center gap-1.5 ${actionStage === 'understanding' ? 'text-amber-600 font-extrabold' : ''}`}>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>2. Understanding</span>
+                  </div>
+                  <span className="text-slate-300">→</span>
+                  <div className={`flex items-center gap-1.5 ${actionStage === 'doing' ? 'text-amber-600 font-extrabold' : ''}`}>
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>3. Doing</span>
+                  </div>
+                  <span className="text-slate-300">→</span>
+                  <div className={`flex items-center gap-1.5 ${actionStage === 'done' ? 'text-emerald-600 font-extrabold' : ''}`}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>4. Done</span>
+                  </div>
+                </div>
+
+                {/* Listening / Speaking State Box */}
+                <div className="my-4 py-6 bg-white rounded-3xl border border-amber-200/80 shadow-inner flex flex-col items-center justify-center px-4 text-center">
+                  {isListening ? (
+                    <>
+                      <div className="flex items-center justify-center space-x-2 h-14 mb-3">
+                        <span className="w-2.5 bg-amber-500 rounded-full animate-voice-bar-1" />
+                        <span className="w-2.5 bg-orange-500 rounded-full animate-voice-bar-2" />
+                        <span className="w-2.5 bg-amber-600 rounded-full animate-voice-bar-3" />
+                        <span className="w-2.5 bg-yellow-500 rounded-full animate-voice-bar-4" />
+                        <span className="w-2.5 bg-orange-600 rounded-full animate-voice-bar-5" />
+                      </div>
+                      <p className="text-xl font-bold text-slate-800 font-brand">
+                        {selectedLang === 'hi' ? 'आपकी आवाज़ सुन रहे हैं...' : 'Listening to your voice...'}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1 font-medium">
+                        {interimTranscript ? (
+                          <span className="text-amber-700 font-semibold italic">"{interimTranscript}..."</span>
+                        ) : (
+                          selectedLang === 'hi' ? 'सहज रूप से बोलिए। कोई जल्दी नहीं है।' : 'Speak naturally. There is no hurry.'
+                        )}
+                      </p>
+                    </>
+                  ) : micError ? (
+                    <div className="flex flex-col items-center px-4 py-2">
+                      <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 mb-2">
+                        <AlertCircle className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800 max-w-md">{micError}</p>
+                      <button
+                        onClick={() => startListening()}
+                        className="mt-3 px-4 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-amber-700 transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Try Microphone Again</span>
+                      </button>
+                    </div>
+                  ) : transcript ? (
+                    <div className="w-full text-left px-2 sm:px-4">
+                      <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block mb-1">
+                        {selectedLang === 'hi' ? 'आपने पूछा:' : 'You asked:'}
+                      </span>
+                      <p className="text-lg font-bold text-slate-900 font-brand italic mb-3">
+                        {transcript}
+                      </p>
+
+                      {/* Loading indicator */}
+                      {isLoading && (
+                        <div className="flex items-center gap-2 py-4 text-amber-600 font-bold text-sm">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                          <span>{selectedLang === 'hi' ? 'समझ रहे हैं...' : 'Understanding and acting...'}</span>
+                        </div>
+                      )}
+
+                      {/* Assistant Reply Card */}
+                      {assistantReply && (
+                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col gap-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <Volume2 className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                              <p className="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed font-brand">
+                                {assistantReply}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (isSpeaking) {
+                                  stopSpeaking();
+                                } else {
+                                  speakText(assistantReply, selectedLang);
                                 }
-                              }
-                              window.open(url, '_blank');
-                            }}
-                            className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-forest-600 hover:bg-forest-700 active:scale-98 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
-                          >
-                            {suggestedAction.icon === 'music' && <Music className="w-4 h-4" />}
-                            {suggestedAction.icon === 'game' && <Gamepad2 className="w-4 h-4" />}
-                            <span>{suggestedAction.label}</span>
-                            <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-80" />
-                          </button>
-                          {autoRedirectStatus && (
-                            <p className="text-xs text-forest-600 font-semibold animate-pulse">
-                              {autoRedirectStatus}
-                            </p>
+                              }}
+                              className="p-2 rounded-xl bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors shrink-0 cursor-pointer"
+                              title={isSpeaking ? 'Mute' : 'Replay'}
+                            >
+                              {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                            </button>
+                          </div>
+
+                          {/* Action trigger button */}
+                          {suggestedAction && (
+                            <div className="pt-2 border-t border-amber-200 flex flex-col items-end gap-1">
+                              <button
+                                onClick={() => {
+                                  window.location.href = suggestedAction.url;
+                                }}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+                              >
+                                {suggestedAction.icon === 'music' && <Music className="w-4 h-4" />}
+                                {suggestedAction.icon === 'game' && <Gamepad2 className="w-4 h-4" />}
+                                <span>{suggestedAction.label}</span>
+                                <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-80" />
+                              </button>
+                              {autoRedirectStatus && (
+                                <p className="text-xs text-amber-700 font-semibold animate-pulse">
+                                  {autoRedirectStatus}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
                     </div>
+                  ) : (
+                    <p className="text-base font-semibold text-slate-600">
+                      {selectedLang === 'hi'
+                        ? 'नीचे दिए गए किसी भी प्रश्न पर टैप करें या बोलें।'
+                        : selectedLang === 'hinglish'
+                        ? 'Neeche diye gaye questions par tap karein ya natural bolein.'
+                        : 'Tap any prompt below or speak naturally.'}
+                    </p>
                   )}
                 </div>
-              ) : (
-                <p className="text-base font-semibold text-[#1A202C]/70">
-                  Tap any prompt below or speak naturally.
-                </p>
-              )}
-            </div>
 
-            {/* Quick Suggested Voice Prompts */}
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#1A202C]/60 block mb-2 font-brand-body">
-                Or tap a helpful question:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {samplePrompts.map((item, idx) => (
+                {/* Direct 1-Tap Shortcut to Caregiver Voice Messenger */}
+                <div className="mb-3">
                   <button
-                    key={idx}
-                    onClick={() => handleSelectPrompt(item.title)}
-                    className="min-h-[56px] p-3 text-left rounded-2xl bg-cream-50 hover:bg-forest-100 border border-forest-200 hover:border-forest-400 text-forest-900 transition-all duration-200 flex items-center space-x-2.5 active:scale-98 cursor-pointer group"
+                    type="button"
+                    onClick={openIntegratedCaregiverMessenger}
+                    className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-100/90 via-orange-100/80 to-amber-100/90 hover:from-amber-200 hover:to-orange-200 border border-amber-300 text-slate-900 transition-all flex items-center justify-between gap-3 shadow-xs active:scale-99 cursor-pointer group"
                   >
-                    <Sparkles className="w-4 h-4 text-forest-600 shrink-0 group-hover:scale-110 transition-transform" />
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm sm:text-base leading-snug">"{item.title}"</span>
-                      <span className="text-[11px] font-medium text-forest-700/80 mt-0.5">{item.sub}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
+                        <HeartHandshake className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="font-extrabold text-sm text-slate-900 block font-brand leading-tight">
+                          {selectedLang === 'hi' ? 'केयरगिवर को वॉइस मैसेज भेजें' : 'Send Voice Note to Caregiver'}
+                        </span>
+                        <span className="text-[11px] text-amber-900/70 font-medium">
+                          {selectedLang === 'hi' ? 'अपनी आवाज़ में बात रिकॉर्ड करके भेजें' : 'Record and send a personal spoken update'}
+                        </span>
+                      </div>
                     </div>
+                    <span className="text-xs font-bold text-amber-800 bg-white/90 px-3 py-1 rounded-xl border border-amber-200 shrink-0">
+                      {selectedLang === 'hi' ? 'रिकॉर्ड करें →' : 'Record →'}
+                    </span>
                   </button>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Text Input Fallback (Type a question anytime) */}
-            <form onSubmit={handleSendText} className="mt-4 flex items-center space-x-2">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Ask anything (e.g. 'what is my schedule?' or 'play peaceful music')..."
-                className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-forest-200 focus:outline-none focus:border-forest-500 text-sm text-[#1A202C] placeholder-[#1A202C]/50"
-              />
-              <button
-                type="submit"
-                disabled={!textInput.trim()}
-                className="px-4 py-2.5 rounded-xl bg-forest-600 hover:bg-forest-700 disabled:opacity-40 text-white text-sm font-bold flex items-center space-x-1.5 transition-colors cursor-pointer"
-              >
-                <Send className="w-4 h-4" />
-                <span className="hidden sm:inline">Ask</span>
-              </button>
-            </form>
+                {/* Quick Suggested Voice Prompts */}
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                    {selectedLang === 'hi' ? 'या इन आसान प्रश्नों पर टैप करें:' : 'Helpful actions and questions:'}
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {samplePrompts.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectPrompt(item.title)}
+                        className="min-h-[54px] p-3 text-left rounded-2xl bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-400 text-slate-900 transition-all flex items-center gap-2.5 active:scale-98 cursor-pointer group shadow-sm"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm leading-snug">"{item.title}"</span>
+                          <span className="text-[11px] font-medium text-slate-500 mt-0.5">{item.sub}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Bottom Actions */}
-            <div className="mt-5 pt-4 border-t border-[#E8DFD1] flex flex-col sm:flex-row items-center justify-between gap-3">
-              <button
-                onClick={() => {
-                  if (isListening) {
-                    stopListening();
-                  } else {
-                    setTranscript('');
-                    setAssistantReply(null);
-                    setSuggestedAction(null);
-                    startListening();
-                  }
-                }}
-                className="w-full sm:w-auto min-h-[52px] px-6 py-2.5 rounded-2xl bg-forest-100 hover:bg-forest-200 text-forest-800 font-bold text-base flex items-center justify-center space-x-2 border border-forest-300 transition-colors active:scale-98 cursor-pointer"
-              >
-                {isListening ? (
-                  <>
-                    <MicOff className="w-5 h-5 text-forest-700" />
-                    <span>Pause Listening</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-5 h-5 text-forest-700" />
-                    <span>Tap to Speak Again</span>
-                  </>
-                )}
-              </button>
+                {/* Text Input Fallback */}
+                <form onSubmit={handleSendText} className="mt-4 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    placeholder={
+                      selectedLang === 'hi'
+                        ? 'यहाँ कुछ भी पूछें (जैसे "मेरी अगली दवाई कब है?")...'
+                        : selectedLang === 'hinglish'
+                        ? 'Yahan type karein (jaise "meri next medicine kab hai?")...'
+                        : 'Type anything (e.g. "when is my next medicine?")...'
+                    }
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:border-amber-500 text-sm text-slate-800 placeholder-slate-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!textInput.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Ask</span>
+                  </button>
+                </form>
 
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-full sm:w-auto min-h-[52px] px-8 py-2.5 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-base shadow-warm-sm transition-colors active:scale-98 cursor-pointer"
-              >
-                Done Listening
-              </button>
-            </div>
+                {/* Bottom Actions */}
+                <div className="mt-5 pt-4 border-t border-amber-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <button
+                    onClick={() => {
+                      if (isListening) {
+                        stopListening();
+                      } else {
+                        setTranscript('');
+                        setAssistantReply(null);
+                        setSuggestedAction(null);
+                        startListening();
+                      }
+                    }}
+                    className="w-full sm:w-auto min-h-[50px] px-6 py-2 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-base flex items-center justify-center gap-2 border border-amber-300 transition-colors active:scale-98 cursor-pointer"
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="w-5 h-5" />
+                        <span>Pause Listening</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-5 h-5" />
+                        <span>Tap to Speak Again</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="w-full sm:w-auto min-h-[50px] px-8 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-base shadow-md transition-colors active:scale-98 cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

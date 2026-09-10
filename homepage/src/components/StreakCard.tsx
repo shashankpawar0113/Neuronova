@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Sparkles, Heart, Brain, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { BACKEND_URL } from '../config/urls';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ProgressSummaryData {
   summary: string;
@@ -24,6 +26,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   userName = 'Friend',
   revealDelay = 0,
 }) => {
+  const { t } = useLanguage();
   const [summaryData, setSummaryData] = useState<ProgressSummaryData | null>(null);
   const [realStreak, setRealStreak] = useState<number>(streakDays);
   const [realImprovement, setRealImprovement] = useState<number>(improvementPercentage);
@@ -37,8 +40,8 @@ export const StreakCard: React.FC<StreakCardProps> = ({
       try {
         setIsLoading(true);
         const resolvedId = userId || userName.toLowerCase().replace(/\s+/g, '_') || 'patient_current';
-        // Connect to the local NeuroNova AI & Persistence service
-        const response = await fetch('http://localhost:5001/api/progress-summary', {
+        // Connect to the NeuroNova AI & Persistence service
+        const response = await fetch(`${BACKEND_URL}/api/progress-summary`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -102,7 +105,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
 
   return (
     <div
-      className="w-full bg-gradient-to-r from-muga-50 via-cream-50 to-forest-50/60 rounded-2xl border border-muga-200/70 p-4 sm:p-5 shadow-warm-sm flex flex-col gap-4 transition-all hover:shadow-warm-md reveal-up"
+      className="w-full bg-gradient-to-r from-muga-50 via-cream-50 to-forest-50/60 rounded-2xl border border-muga-200/70 p-4 sm:p-5 shadow-warm-sm flex flex-col gap-4 transition-all hover:shadow-warm-md reveal-up will-change-transform"
       style={{ '--reveal-delay': `${revealDelay}ms` } as React.CSSProperties}
     >
       
@@ -116,15 +119,15 @@ export const StreakCard: React.FC<StreakCardProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xl sm:text-2xl font-extrabold text-[#1A202C] font-brand-heading">
-                {realStreak} Days of Bright Moments
+                {t.streak.brightMoments(realStreak)}
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-muga-100 text-muga-600 border border-muga-200">
                 <Sparkles className="w-3 h-3 mr-1 text-muga-500" />
-                Gentle Routine
+                {t.streak.gentleRoutineBadge}
               </span>
             </div>
             <p className="text-sm sm:text-base text-[#1A202C]/80 font-brand-body mt-0.5">
-              You've taken gentle care of your mind each morning.
+              {t.streak.gentleCareSubtitle}
             </p>
           </div>
         </div>
@@ -136,10 +139,10 @@ export const StreakCard: React.FC<StreakCardProps> = ({
           </div>
           <div className="text-left">
             <p className="text-xs font-semibold text-forest-700 uppercase tracking-wider">
-              Personal Progress
+              {t.streak.personalProgress}
             </p>
             <p className="text-sm sm:text-base font-bold text-[#1A202C]">
-              You improved <span className="text-forest-600">+{realImprovement}%</span> compared with last week!
+              {t.streak.improvedText(realImprovement)}
             </p>
           </div>
         </div>
@@ -153,11 +156,11 @@ export const StreakCard: React.FC<StreakCardProps> = ({
               <Brain className="w-3.5 h-3.5" />
             </div>
             <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-              Weekly Cognitive Reflection
+              {t.streak.weeklyReflection}
               {summaryData?.highlightDimension && (
                 <span className="normal-case font-medium text-xs px-2 py-0.5 rounded-md bg-white/90 border border-indigo-100 text-indigo-700 inline-flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-forest-600" />
-                  Strongest in {summaryData.highlightDimension}
+                  {t.streak.strongestIn(summaryData.highlightDimension)}
                 </span>
               )}
             </span>
@@ -177,7 +180,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
             {isLoading ? (
               <div className="flex items-center space-x-2 text-sm text-[#1A202C]/60 py-1">
                 <div className="w-4 h-4 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-                <span>Gathering your warm weekly reflection...</span>
+                <span>{t.streak.reflectionLoading}</span>
               </div>
             ) : (
               <p className="text-sm sm:text-base text-[#1A202C]/90 font-brand-body leading-relaxed">

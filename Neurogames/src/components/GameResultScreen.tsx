@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, RefreshCw, Home, Trophy, Heart, ArrowRight } from 'lucide-react';
 import { GameResult } from '../types';
+import { HOMEPAGE_URL } from '../config/urls';
 
 interface GameResultScreenProps {
   result: GameResult;
@@ -172,7 +173,7 @@ export const GameResultScreen: React.FC<GameResultScreenProps> = ({
             All Games
           </button>
           <button
-            onClick={() => { window.location.href = 'http://localhost:5175'; }}
+            onClick={() => { window.location.href = HOMEPAGE_URL; }}
             className="w-full py-2.5 rounded-2xl text-[#1A202C]/60 hover:text-forest-700 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Home className="w-4 h-4" />

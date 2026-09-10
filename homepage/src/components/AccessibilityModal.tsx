@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Type, Check, SunMedium, UserCheck, HeartHandshake, Copy, CheckCheck } from 'lucide-react';
 import { UserPreferences, FontSizePreference } from '../types';
+import { BACKEND_URL } from '../config/urls';
 
 interface AccessibilityModalProps {
   isOpen: boolean;
@@ -27,8 +28,8 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({
     let active = true;
 
     const url = userName 
-      ? `http://localhost:5001/api/patient/${encodeURIComponent(userId)}/invite-code?name=${encodeURIComponent(userName)}`
-      : `http://localhost:5001/api/patient/${encodeURIComponent(userId)}/invite-code`;
+      ? `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code?name=${encodeURIComponent(userName)}`
+      : `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code`;
 
     fetch(url)
       .then(res => res.ok ? res.json() : null)

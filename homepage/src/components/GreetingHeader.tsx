@@ -1,20 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { SlidersHorizontal, Sun, Moon, Sunrise, Clock, Calendar, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { SlidersHorizontal, Clock, Calendar, Sparkles, LogOut, Globe } from 'lucide-react';
+import { AUTHPAGE_URL, BACKEND_URL } from '../config/urls';
+import { CelestialGreetingBox } from './CelestialGreetingBox';
+import { useLanguage } from '../context/LanguageContext';
 
 interface GreetingHeaderProps {
   userName: string;
   onOpenSettings: () => void;
+  onOpenLanguage?: () => void;
   revealDelay?: number; // ms offset for stagger — set by App.tsx
+}
+
+interface DailyMotivation {
+  message: string;
+  theme?: string;
+  modelUsed?: string;
 }
 
 export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
   userName,
   onOpenSettings,
-  revealDelay = 0,
+  onOpenLanguage,
+  revealDelay: _revealDelay = 0,
 }) => {
+  const { language, t } = useLanguage();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
-  // Live ticking clock for dementia/memory orientation
+  // Secret Triple-Tap Controls Menu (Dementia-safe: hides Settings & Sign Out from patients)
+  const [isSecretMenuOpen, setIsSecretMenuOpen] = useState(false);
+  const tapCountRef = useRef(0);
+  const lastTapTimeRef = useRef(0);
+  const secretMenuRef = useRef<HTMLDivElement>(null);
+
+  // Daily AI Motivation state
+  const [motivation, setMotivation] = useState<DailyMotivation | null>(null);
+
+  // Live clock tick
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDateTime(new Date());
@@ -22,110 +43,230 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch daily AI motivational message from backend
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let isMounted = true;
+
+    fetch(`${BACKEND_URL}/api/daily-motivation?userName=${encodeURIComponent(userName)}&date=${todayStr}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!isMounted || !data?.message) return;
+        const result: DailyMotivation = {
+          message: data.message,
+          theme: data.theme,
+          modelUsed: data.modelUsed,
+        };
+        setMotivation(result);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userName]);
+
+  const handleTimeBoxTap = () => {
+    const now = Date.now();
+    if (now - lastTapTimeRef.current < 650) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapTimeRef.current = now;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      setIsSecretMenuOpen(prev => !prev);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([40, 50, 40]);
+      }
+    }
+  };
+
+  // Close secret menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (secretMenuRef.current && !secretMenuRef.current.contains(e.target as Node)) {
+        setIsSecretMenuOpen(false);
+      }
+    };
+    if (isSecretMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSecretMenuOpen]);
+
   const hours = currentDateTime.getHours();
 
-  // Time-of-day greeting
-  let timeGreeting = 'Good morning';
-  let GreetingIcon = Sunrise;
+  // Time-of-day greeting from translations
+  let timeGreeting = t.greetings.morning;
   if (hours >= 12 && hours < 17) {
-    timeGreeting = 'Good afternoon';
-    GreetingIcon = Sun;
-  } else if (hours >= 17 || hours < 4) {
-    timeGreeting = 'Good evening';
-    GreetingIcon = Moon;
+    timeGreeting = t.greetings.afternoon;
+  } else if (hours >= 17 && hours < 21) {
+    timeGreeting = t.greetings.evening;
+  } else if (hours >= 21 || hours < 5) {
+    timeGreeting = t.greetings.night;
   }
 
-  // Formatted date and time strings
+  // Formatted date and time strings for the right-hand clock badge
   const formattedTime = currentDateTime.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   });
 
-  const formattedShortDate = currentDateTime.toLocaleDateString('en-US', {
+  const formattedShortDate = currentDateTime.toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
   });
 
-  const dayName = currentDateTime.toLocaleDateString('en-US', { weekday: 'long' });
-  const monthName = currentDateTime.toLocaleDateString('en-US', { month: 'long' });
-  const dayNumber = currentDateTime.getDate();
-  const yearNumber = currentDateTime.getFullYear();
-
   return (
-    <header className="w-full bg-[#FAF7F2] border-b border-[#E8DFD1] pt-6 pb-5 px-4 sm:px-8 md:px-12 transition-colors">
-      <div className="max-w-6xl mx-auto flex items-start justify-between gap-4">
-        
-        {/* Left: Orientation Date & Warm Greeting — slides down gently */}
-        <div
-          className="flex flex-col reveal-down"
-          style={{ '--reveal-delay': `${revealDelay}ms` } as React.CSSProperties}
-        >
-          {/* Day & Date — Big, clear, prominent for memory support */}
-          <div className="inline-flex items-center space-x-2 text-forest-700 font-semibold tracking-wide text-base sm:text-lg mb-1">
-            <GreetingIcon className="w-5 h-5 text-muga-500 shrink-0" aria-hidden="true" />
-            <span>Today is {dayName}, {monthName} {dayNumber}, {yearNumber}</span>
-          </div>
-
-          {/* Main Greeting Headline: Uses exact account name */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#1A202C] tracking-tight font-brand-heading leading-tight">
-            {timeGreeting}, <span className="text-forest-600">{userName}</span>
-          </h1>
-
-          <p className="mt-1.5 text-base sm:text-lg text-[#1A202C]/75 font-brand-body">
-            Wishing you a peaceful, bright, and comfortable day.
-          </p>
-        </div>
-
-        {/* Right: Live Date & Time Display + Settings Button — slides in from right */}
-        <div
-          className="shrink-0 pt-1 flex items-center space-x-2.5 sm:space-x-3.5 reveal-left"
-          style={{ '--reveal-delay': `${revealDelay + 80}ms` } as React.CSSProperties}
-        >
+    <div className="w-full pt-4 sm:pt-6 px-4 sm:px-8 md:px-12 relative z-30">
+      <header className="max-w-6xl mx-auto w-full bg-[#FAF7F2]/90 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-[#E8DFD1]/80 p-4 sm:p-5 md:px-7 md:py-5 shadow-warm-md relative z-30">
+        <div className="flex items-start justify-between gap-4">
           
-          {/* Live Clock & Date Badge */}
-          <div className="flex flex-col items-end px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white/90 border-2 border-forest-200/80 shadow-warm-sm">
-            <div className="flex items-center space-x-1.5 text-forest-900 font-extrabold text-base sm:text-xl font-brand-heading leading-tight">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-forest-600 shrink-0" aria-hidden="true" />
-              <span>{formattedTime}</span>
-            </div>
-            <div className="flex items-center space-x-1 text-xs sm:text-sm font-semibold text-[#1A202C]/75 font-brand-body mt-0.5">
-              <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muga-500 shrink-0" aria-hidden="true" />
-              <span>{formattedShortDate}</span>
+          {/* Left: Warm Greeting & Daily AI Motivational Message */}
+          <div className="flex items-start gap-3.5 sm:gap-4.5 flex-1 min-w-0 pr-2">
+            {/* Celestial Sun / Moon Box */}
+            <CelestialGreetingBox hours={hours} className="mt-0.5 sm:mt-1" />
+
+            <div className="flex flex-col flex-1 min-w-0">
+              {/* Main Greeting Headline */}
+              <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-[#1A202C] tracking-tight font-brand-heading leading-tight">
+                {timeGreeting}, <span className="text-forest-600">{userName}</span>
+              </h1>
+
+              {/* Underneath: Daily Motivational Thought generated by AI */}
+              <div className="mt-2.5 flex items-start gap-2.5 max-w-2xl">
+                <div className="mt-0.5 w-6 h-6 rounded-full bg-amber-500/15 border border-amber-400/35 flex items-center justify-center shrink-0 shadow-2xs">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base sm:text-lg text-[#1A202C]/85 font-brand-body font-medium leading-relaxed italic">
+                    "{motivation?.message || (language === 'hi' ? 'आपका दिन सुखद, शांत और मंगलमय हो।' : 'Wishing you a peaceful, bright, and comfortable day.')}"
+                  </p>
+                  {motivation?.theme && (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-50 border border-forest-200/80 text-[11px] font-bold uppercase tracking-wider text-forest-700">
+                        {t.header.dailyThought} • {motivation.theme}
+                      </span>
+                      <span className="text-[11px] text-[#1A202C]/50 font-medium">
+                        {t.header.aiWellness}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Settings & Accessibility Button */}
-          <button
-            onClick={onOpenSettings}
-            className="min-w-[56px] min-h-[56px] p-3.5 rounded-2xl bg-forest-50 hover:bg-forest-100 border border-forest-200/80 text-forest-800 flex items-center justify-center space-x-2 transition-all duration-200 hover:shadow-warm-sm active:scale-95 group focus-visible:ring-4 focus-visible:ring-forest-500"
-            aria-label="Open text size and accessibility preferences"
-            title="Text Size & Display Settings"
+          {/* Right: Live Date & Time Badge with Secret Triple-Tap Caregiver Menu */}
+          <div
+            ref={secretMenuRef}
+            className="shrink-0 pt-1 relative z-50"
           >
-            <SlidersHorizontal className="w-6 h-6 text-forest-700 group-hover:rotate-12 transition-transform duration-200" />
-            <span className="hidden sm:inline font-semibold text-sm text-forest-800">Settings</span>
-          </button>
+            {/* Live Clock & Date Badge (Triple tap opens secret settings & logout) */}
+            <button
+              type="button"
+              onClick={handleTimeBoxTap}
+              title={t.header.timeDateTitle}
+              className={`flex flex-col items-end px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-white/90 border-2 shadow-warm-sm select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-500 ${
+                isSecretMenuOpen 
+                  ? 'border-forest-500 ring-2 ring-forest-400/30 bg-forest-50/70' 
+                  : 'border-forest-200/80 hover:border-forest-400/80 hover:shadow-warm-md'
+              }`}
+            >
+              <div className="flex items-center space-x-1.5 text-forest-900 font-extrabold text-base sm:text-xl font-brand-heading leading-tight">
+                <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-forest-600 shrink-0" aria-hidden="true" />
+                <span>{formattedTime}</span>
+              </div>
+              <div className="flex items-center space-x-1 text-xs sm:text-sm font-semibold text-[#1A202C]/75 font-brand-body mt-0.5">
+                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muga-500 shrink-0" aria-hidden="true" />
+                <span>{formattedShortDate}</span>
+              </div>
+            </button>
 
-          {/* Clean Sign Out Button */}
-          <button
-            onClick={() => {
-              try {
-                localStorage.clear();
-                sessionStorage.clear();
-              } catch (_) {}
-              window.location.href = 'http://localhost:5174/';
-            }}
-            className="min-w-[56px] min-h-[56px] p-3.5 rounded-2xl bg-white hover:bg-red-50 border border-[#E8DFD1] hover:border-red-200 text-[#1A202C]/80 hover:text-red-700 flex items-center justify-center space-x-2 transition-all duration-200 hover:shadow-warm-sm active:scale-95 group focus-visible:ring-4 focus-visible:ring-red-400"
-            aria-label="Sign Out of NeuroNova"
-            title="Sign Out"
-          >
-            <LogOut className="w-5 h-5 text-[#1A202C]/60 group-hover:text-red-600 transition-colors" />
-            <span className="hidden sm:inline font-semibold text-sm">Sign Out</span>
-          </button>
+            {/* Secret Menu for Caregiver / Admin Settings & Sign Out */}
+            {isSecretMenuOpen && (
+              <div 
+                className="absolute right-0 top-full mt-2.5 w-72 bg-white rounded-2xl border-2 border-slate-200/90 shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 ring-1 ring-black/5 overflow-hidden"
+                style={{ backgroundColor: '#ffffff', opacity: 1 }}
+              >
+                <div className="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-forest-700">
+                    {t.systemControls.title}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">{t.systemControls.caregiverBadge}</span>
+                </div>
+
+                {/* Settings Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSecretMenuOpen(false);
+                    onOpenSettings();
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl hover:bg-forest-50 text-[#1A202C] hover:text-forest-900 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center text-forest-700 shrink-0">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-bold text-slate-800">{t.systemControls.displaySettings}</span>
+                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.accessibilitySub}</span>
+                  </div>
+                </button>
+
+                {/* Voice & App Language Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSecretMenuOpen(false);
+                    if (onOpenLanguage) {
+                      onOpenLanguage();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('neuronova:open-language-modal'));
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl hover:bg-amber-50 text-[#1A202C] hover:text-amber-900 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-bold text-slate-800">{t.systemControls.languageOption}</span>
+                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.languageSub}</span>
+                  </div>
+                </button>
+
+                {/* Sign Out Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.clear();
+                      sessionStorage.clear();
+                    } catch (_) {}
+                    window.location.href = `${AUTHPAGE_URL}/`;
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-[#1A202C] hover:text-red-700 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-red-100/70 flex items-center justify-center text-red-600 shrink-0">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-bold text-slate-800">{t.systemControls.signOut}</span>
+                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.signOutSub}</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
-
-      </div>
-    </header>
+      </header>
+    </div>
   );
 };

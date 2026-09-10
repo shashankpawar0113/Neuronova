@@ -61,11 +61,14 @@ function buildDeck(pairs: number): Card[] {
 
 interface MemoryMatchGameProps {
   onBack: () => void;
+  onGameComplete?: (result: GameResult) => void;
+  initialLevel?: number;
 }
 
-export const MemoryMatchGame: React.FC<MemoryMatchGameProps> = ({ onBack }) => {
-  const [level, setLevel] = useState(1);
-  const [deck, setDeck] = useState<Card[]>(() => buildDeck(LEVEL_CONFIG[0].pairs));
+export const MemoryMatchGame: React.FC<MemoryMatchGameProps> = ({ onBack, onGameComplete, initialLevel = 1 }) => {
+  const safeInitialLevel = Math.max(1, Math.min(initialLevel, LEVEL_CONFIG.length));
+  const [level, setLevel] = useState(safeInitialLevel);
+  const [deck, setDeck] = useState<Card[]>(() => buildDeck(LEVEL_CONFIG[safeInitialLevel - 1].pairs));
   const [flippedUids, setFlippedUids] = useState<string[]>([]);
   const [attempts, setAttempts] = useState(0);
   const [matchedCount, setMatchedCount] = useState(0);
@@ -131,8 +134,11 @@ export const MemoryMatchGame: React.FC<MemoryMatchGameProps> = ({ onBack }) => {
       };
       setResult(res);
       persistGameResult(res);
+      if (onGameComplete) {
+        setTimeout(() => onGameComplete(res), 800);
+      }
     }
-  }, [matchedCount, pairs]);
+  }, [matchedCount, pairs, onGameComplete]);
 
   const resetGame = (lvl = level) => {
     setDeck(buildDeck(LEVEL_CONFIG[lvl - 1].pairs));

@@ -1,4 +1,5 @@
 import { ArrowLeft, Home, RotateCcw } from 'lucide-react';
+import { HOMEPAGE_URL } from '../config/urls';
 
 interface GameHeaderProps {
   title: string;
@@ -67,7 +68,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
         )}
 
         <button
-          onClick={() => { window.location.href = 'http://localhost:5175'; }}
+          onClick={() => { window.location.href = `${HOMEPAGE_URL}`; }}
           className="w-9 h-9 rounded-xl bg-white border border-cream-300 text-[#1A202C]/60 hover:bg-cream-200 flex items-center justify-center transition-colors cursor-pointer"
           aria-label="Go to main home screen"
           title="← Back to Main Home Screen"

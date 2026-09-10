@@ -4,6 +4,7 @@ import {
   ChevronRight, RefreshCw, Home, Flower2,
 } from 'lucide-react';
 import { ReminiscenceEvent } from '../types';
+import { HOMEPAGE_URL } from '../config/urls';
 
 // Mock tagged photos — seeded with name + relationship
 // In a real implementation these would come from the caregiver upload flow
@@ -158,7 +159,7 @@ export const MemoryVaultHub: React.FC<MemoryVaultHubProps> = ({ onBack }) => {
               <p className="text-xs text-[#1A202C]/60">Your cherished faces & moments</p>
             </div>
           </div>
-          <button onClick={() => { window.location.href = 'http://localhost:5175'; }}
+          <button onClick={() => { window.location.href = HOMEPAGE_URL; }}
             className="w-9 h-9 rounded-xl bg-white border border-cream-300 text-[#1A202C]/60 hover:bg-cream-200 flex items-center justify-center transition-colors" title="← Back to Main Home Screen">
             <Home className="w-4 h-4" />
           </button>

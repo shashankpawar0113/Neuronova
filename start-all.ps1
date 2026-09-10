@@ -10,6 +10,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ro
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neuromusic'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neurogames'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\caregiverpage'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\healthworker'; npm run dev"
 
 Start-Sleep -Seconds 4
 Start-Process "http://localhost:5174/"

@@ -136,6 +136,136 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS ai_cognitive_evaluations (
+      patient_id TEXT PRIMARY KEY,
+      analysis_json TEXT NOT NULL,
+      source TEXT NOT NULL,
+      model_used TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS daily_motivational_messages (
+      message_date TEXT NOT NULL,
+      user_key TEXT NOT NULL,
+      message TEXT NOT NULL,
+      theme TEXT,
+      model_used TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY(message_date, user_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_tasks (
+      id TEXT PRIMARY KEY,
+      patient_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL,
+      scheduled_time TEXT NOT NULL,
+      recurrence TEXT DEFAULT 'daily',
+      grace_period_minutes INTEGER DEFAULT 30,
+      is_active INTEGER DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS task_completion_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id TEXT NOT NULL,
+      patient_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      completed_at TEXT DEFAULT (datetime('now')),
+      completed_by TEXT DEFAULT 'patient',
+      notes TEXT,
+      UNIQUE(task_id, date)
+    );
+
+    CREATE TABLE IF NOT EXISTS voice_messages (
+      id TEXT PRIMARY KEY,
+      patient_id TEXT NOT NULL,
+      patient_name TEXT NOT NULL,
+      caregiver_id TEXT NOT NULL,
+      transcript TEXT NOT NULL,
+      audio_filename TEXT NOT NULL,
+      duration_seconds INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'unread',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      recipient_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      related_entity_id TEXT,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS call_sessions (
+      id TEXT PRIMARY KEY,
+      patient_id TEXT NOT NULL,
+      caregiver_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      started_at TEXT DEFAULT (datetime('now')),
+      ended_at TEXT,
+      duration_seconds INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS emergency_contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patient_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      relationship TEXT NOT NULL,
+      phone_number TEXT NOT NULL,
+      is_primary INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_unique_ids (
+      patient_id TEXT PRIMARY KEY,
+      unique_patient_id TEXT UNIQUE NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS health_worker_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      organization TEXT,
+      phone TEXT,
+      email TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS health_worker_patient_access (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT NOT NULL,
+      patient_id TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      authorized_at TEXT DEFAULT (datetime('now')),
+      authorized_by TEXT DEFAULT 'admin',
+      UNIQUE(worker_id, patient_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS health_worker_concerns (
+      id TEXT PRIMARY KEY,
+      worker_id TEXT NOT NULL,
+      patient_id TEXT NOT NULL,
+      concern_type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS health_worker_access_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id TEXT NOT NULL,
+      patient_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      timestamp TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_liked_user ON liked_songs(user_id);
     CREATE INDEX IF NOT EXISTS idx_games_user ON game_results(user_id);
     CREATE INDEX IF NOT EXISTS idx_routine_user_date ON routine_logs(user_id, date);
@@ -145,13 +275,43 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_invite_code ON patient_invite_codes(invite_code);
     CREATE INDEX IF NOT EXISTS idx_history_user ON music_listening_history(user_id);
     CREATE INDEX IF NOT EXISTS idx_history_play_count ON music_listening_history(user_id, play_count DESC);
+    CREATE INDEX IF NOT EXISTS idx_tasks_patient ON patient_tasks(patient_id);
+    CREATE INDEX IF NOT EXISTS idx_task_completion ON task_completion_logs(task_id, date);
+    CREATE INDEX IF NOT EXISTS idx_voice_msg_caregiver ON voice_messages(caregiver_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_recipient ON notifications(recipient_id);
+    CREATE INDEX IF NOT EXISTS idx_unique_patient_id ON patient_unique_ids(unique_patient_id);
+    CREATE INDEX IF NOT EXISTS idx_hw_access_worker ON health_worker_patient_access(worker_id);
+    CREATE INDEX IF NOT EXISTS idx_hw_concerns_patient ON health_worker_concerns(patient_id);
   `);
 
   try {
     db.exec(`ALTER TABLE game_results ADD COLUMN combinations_reached INTEGER DEFAULT NULL`);
-  } catch (_) {
-    // Column already exists in existing database
-  }
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN preferred_language TEXT DEFAULT 'en'`);
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN unique_patient_id TEXT DEFAULT NULL`);
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE health_worker_patient_access ADD COLUMN worker_name TEXT DEFAULT NULL`);
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE health_worker_patient_access ADD COLUMN organization TEXT DEFAULT NULL`);
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE health_worker_patient_access ADD COLUMN requested_at TEXT DEFAULT NULL`);
+  } catch (_) {}
+
+  try {
+    db.exec(`ALTER TABLE voice_messages ADD COLUMN is_important INTEGER DEFAULT 0`);
+  } catch (_) {}
 
   console.log(`[Database] SQLite initialized at ${dbPath}`);
 }
+

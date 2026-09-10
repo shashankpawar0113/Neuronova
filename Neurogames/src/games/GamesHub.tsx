@@ -4,6 +4,7 @@ import {
   ArrowRight, Home, Sparkles,
 } from 'lucide-react';
 import { GameType } from '../types';
+import { HOMEPAGE_URL } from '../config/urls';
 
 interface Game {
   id: GameType;
@@ -121,7 +122,7 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
               const u = encodeURIComponent(session.userId);
               const n = encodeURIComponent(session.name);
               const r = encodeURIComponent(session.role);
-              window.location.href = `http://localhost:5175/?userId=${u}&name=${n}&role=${r}`;
+              window.location.href = `${HOMEPAGE_URL}/?userId=${u}&name=${n}&role=${r}`;
             }}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-cream-300 text-forest-800 hover:bg-forest-50 transition-all text-sm font-bold shadow-sm"
             aria-label="Back to main home screen"
@@ -153,6 +154,16 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
               Each game gently exercises a different part of your memory. No time pressure, no wrong answers — 
               just gentle, joyful play at your own pace.
             </p>
+            <div className="mt-3.5 flex items-center gap-3">
+              <button
+                onClick={() => onSelectGame('sequential' as any)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+                <span>Start Daily Voice-Guided Games (Hands-Free)</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 

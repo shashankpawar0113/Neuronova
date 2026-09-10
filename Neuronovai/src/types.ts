@@ -62,3 +62,16 @@ export interface ProgressSummaryResponse {
   computedStats: ComputedStats;
   generatedAt: string;
 }
+
+export interface AICognitiveAnalysis {
+  status: string;
+  statusBadge: string;
+  summary: string;
+  combinationInsight: string;
+  musicInsight: string;
+  recommendations: string[];
+  generatedAt?: string;
+  modelUsed?: string;
+  source?: 'openrouter' | 'clinical-engine';
+}
+

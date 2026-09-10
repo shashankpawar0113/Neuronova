@@ -91,11 +91,14 @@ type Phase = 'watch' | 'repeat' | 'result';
 
 interface SequenceRecallGameProps {
   onBack: () => void;
+  onGameComplete?: (result: GameResult) => void;
+  initialLevel?: number;
 }
 
-export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack }) => {
-  // Continuous Combination Streak mode: starts at 3 steps, increases as user passes
-  const [comboLength, setComboLength] = useState(3);
+export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, onGameComplete, initialLevel = 1 }) => {
+  // Continuous Combination Streak mode: starts at 3 steps (or higher for level 2+), increases as user passes
+  const initialComboLen = Math.min(2 + initialLevel, 6);
+  const [comboLength, setComboLength] = useState(initialComboLen);
   const [combinationsReached, setCombinationsReached] = useState(0);
   const [sequence, setSequence] = useState<number[]>([]);
   const [activePad, setActivePad] = useState<number | null>(null);
@@ -150,11 +153,11 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack }
 
   // Initial round start
   useEffect(() => {
-    startRound(3);
+    startRound(initialComboLen);
     return () => {
       cancelRef.current = true;
     };
-  }, []);
+  }, [initialComboLen, startRound]);
 
   // Finish session and record progress to backend
   const finishSession = (finalMaxCombo = combinationsReached) => {
@@ -176,6 +179,9 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack }
 
     setResult(res);
     persistGameResult(res);
+    if (onGameComplete) {
+      onGameComplete(res);
+    }
   };
 
   // Tap handler
@@ -212,6 +218,16 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack }
       setSuccessAnimation(true);
       setFeedback(`✨ Superb! Combination passed (${comboLength} steps)`);
       setPhase('watch');
+
+      // In sequential mode, completing 4 steps marks the game as successfully finished
+      if (onGameComplete && comboLength >= 4) {
+        setTimeout(() => {
+          if (!cancelRef.current) {
+            finishSession(newMaxCombo);
+          }
+        }, 1100);
+        return;
+      }
 
       setTimeout(() => {
         if (!cancelRef.current) {

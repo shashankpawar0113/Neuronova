@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPreferences } from './types';
+import { UserPreferences, RoutineItem } from './types';
 import { INITIAL_ROUTINE_SCHEDULE } from './data/mockRoutine';
 import { GreetingHeader } from './components/GreetingHeader';
 import { StreakCard } from './components/StreakCard';
@@ -8,6 +8,10 @@ import { HeroActionCards } from './components/HeroActionCards';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { AccessibilityModal } from './components/AccessibilityModal';
 import { ActionPlaceholderModal } from './components/ActionPlaceholderModal';
+import { OrganicUnblurBackground } from './components/OrganicUnblurBackground';
+import { BACKEND_URL, NEUROMUSIC_URL, NEUROGAMES_URL } from './config/urls';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
+import { getSocket } from './services/socketService';
 
 interface UserSession {
   userId: string;
@@ -69,20 +73,35 @@ const fetchLoggedInUserSession = (): UserSession => {
   return { userId: 'guest_user', name: 'Friend', role: 'patient' };
 };
 
-export const App: React.FC = () => {
-  // Fetch session dynamically from account login
-  const [session, setSession] = useState<UserSession>(() => fetchLoggedInUserSession());
+const formatTimeToDisplay = (timeStr: string): string => {
+  try {
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 === 0 ? 12 : h % 12;
+    return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+  } catch {
+    return timeStr;
+  }
+};
+
+const mapTaskTypeToCategory = (type: string): RoutineItem['category'] => {
+  switch (type) {
+    case 'medication': return 'medicine';
+    case 'meal': return 'meal';
+    case 'water':
+    case 'hydration': return 'hydration';
+    case 'exercise':
+    case 'cognitive': return 'activity';
+    case 'game': return 'game';
+    case 'family': return 'family';
+    default: return 'activity';
+  }
+};
+
+const PatientHomeContent: React.FC<{ session: UserSession }> = ({ session }) => {
+  const { t } = useLanguage();
   const userName = session.name;
   const userId = session.userId;
-
-  // Listen for storage events in case login happens in another tab/window
-  useEffect(() => {
-    const handleStorage = () => {
-      setSession(fetchLoggedInUserSession());
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
 
   // Display preferences (fontSize and highContrast only)
   const [preferences, setPreferences] = useState<UserPreferences>({
@@ -90,41 +109,99 @@ export const App: React.FC = () => {
     highContrast: false,
   });
 
-  const [routineSchedule, setRoutineSchedule] = useState(INITIAL_ROUTINE_SCHEDULE);
+  const [routineSchedule, setRoutineSchedule] = useState<RoutineItem[]>(INITIAL_ROUTINE_SCHEDULE);
 
-  // Load user's persisted routine logs from backend
-  useEffect(() => {
-    if (!userId) return;
-    let isSubscribed = true;
+  const targetPatientId = (userId && userId !== 'guest_user') ? userId : 'user_kamla_sharma_family_care';
 
-    fetch(`http://localhost:5001/api/user/${userId}/routine`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!isSubscribed || !data || !Array.isArray(data.logs)) return;
-        const completedMap = new Map<string, boolean>();
-        data.logs.forEach((log: { task_id: string; completed: number | boolean }) => {
-          completedMap.set(log.task_id, Boolean(log.completed));
+  const loadRoutineAndTasks = async () => {
+    try {
+      // 1. Fetch routine completion logs
+      let completedMap = new Map<string, boolean>();
+      try {
+        const routineRes = await fetch(`${BACKEND_URL}/api/user/${userId}/routine`);
+        if (routineRes.ok) {
+          const data = await routineRes.json();
+          if (Array.isArray(data.logs)) {
+            data.logs.forEach((log: { task_id: string; completed: number | boolean }) => {
+              completedMap.set(log.task_id, Boolean(log.completed));
+            });
+          }
+        }
+      } catch (_) {}
+
+      // 2. Fetch scheduled tasks from caregiver
+      let serverTasks: any[] = [];
+      try {
+        const tasksRes = await fetch(`${BACKEND_URL}/api/tasks/${targetPatientId}`);
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          if (Array.isArray(tasksData.tasks)) {
+            serverTasks = tasksData.tasks;
+          }
+        }
+      } catch (_) {}
+
+      if (serverTasks.length > 0) {
+        const mappedTasks: RoutineItem[] = serverTasks.map(t => {
+          const time = t.scheduled_time || t.scheduledTime || '08:00';
+          const isDone = completedMap.has(t.id) ? Boolean(completedMap.get(t.id)) : Boolean(t.is_completed_today);
+          return {
+            id: t.id,
+            time,
+            displayTime: formatTimeToDisplay(time),
+            title: t.title,
+            friendlyPrompt: t.description ? `${t.title} — ${t.description}` : t.title,
+            category: mapTaskTypeToCategory(t.type),
+            completed: isDone,
+            notes: t.description || '',
+          };
         });
 
-        setRoutineSchedule(prev => prev.map(item => {
-          if (completedMap.has(item.id)) {
-            return { ...item, completed: Boolean(completedMap.get(item.id)) };
-          }
-          // Default uncompleted for real account if not in log
-          return { ...item, completed: false };
-        }));
-      })
-      .catch(err => {
-        console.warn('Failed to load routine logs from backend:', err);
-      });
+        // Also merge baseline items that don't collide
+        const existingTitles = new Set(mappedTasks.map(m => m.title.toLowerCase()));
+        const extraBaseline = INITIAL_ROUTINE_SCHEDULE
+          .filter(item => !existingTitles.has(item.title.toLowerCase()))
+          .map(item => ({
+            ...item,
+            completed: completedMap.has(item.id) ? Boolean(completedMap.get(item.id)) : false,
+          }));
+
+        const merged = [...mappedTasks, ...extraBaseline].sort((a, b) => {
+          const [ha, ma] = (a.time || '08:00').split(':').map(Number);
+          const [hb, mb] = (b.time || '08:00').split(':').map(Number);
+          return (ha * 60 + ma) - (hb * 60 + mb);
+        });
+
+        setRoutineSchedule(merged);
+      } else {
+        setRoutineSchedule(INITIAL_ROUTINE_SCHEDULE.map(item => ({
+          ...item,
+          completed: completedMap.has(item.id) ? Boolean(completedMap.get(item.id)) : false,
+        })));
+      }
+    } catch (err) {
+      console.warn('Failed to load routine schedule:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRoutineAndTasks();
+
+    const socket = getSocket(userId, 'patient', userName);
+    const handleTaskUpdate = () => {
+      loadRoutineAndTasks();
+    };
+
+    socket.on('patient:tasks:updated', handleTaskUpdate);
+    socket.on('patient:task:completed', handleTaskUpdate);
 
     return () => {
-      isSubscribed = false;
+      socket.off('patient:tasks:updated', handleTaskUpdate);
+      socket.off('patient:task:completed', handleTaskUpdate);
     };
-  }, [userId]);
+  }, [userId, targetPatientId]);
 
   const handleToggleRoutine = async (taskId: string, title: string) => {
-    // Find current item
     const currentItem = routineSchedule.find(item => item.id === taskId);
     const nextCompleted = !currentItem?.completed;
 
@@ -133,9 +210,22 @@ export const App: React.FC = () => {
       item.id === taskId ? { ...item, completed: nextCompleted } : item
     ));
 
-    // Persist to backend
     try {
-      await fetch(`http://localhost:5001/api/user/${userId}/routine/toggle`, {
+      // 1. If it's a scheduled caregiver task (starts with task_), sync completion
+      if (nextCompleted && taskId.startsWith('task_')) {
+        await fetch(`${BACKEND_URL}/api/tasks/${encodeURIComponent(taskId)}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: targetPatientId,
+            completedBy: 'patient',
+            notes: 'Completed from daily routine',
+          }),
+        }).catch(() => {});
+      }
+
+      // 2. Persist to /api/user/:userId/routine/toggle and notify caregivers
+      await fetch(`${BACKEND_URL}/api/user/${userId}/routine/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -167,15 +257,15 @@ export const App: React.FC = () => {
     const roleParam = encodeURIComponent(session.role);
 
     if (cardId === 'music') {
-      window.location.href = `http://localhost:5177/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
+      window.location.href = `${NEUROMUSIC_URL}/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
       return;
     }
     if (cardId === 'games') {
-      window.location.href = `http://localhost:5178/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
+      window.location.href = `${NEUROGAMES_URL}/?userId=${userParam}&name=${nameParam}&role=${roleParam}`;
       return;
     }
     if (cardId === 'vault') {
-      window.location.href = `http://localhost:5178/?game=vault&userId=${userParam}&name=${nameParam}&role=${roleParam}`;
+      window.location.href = `${NEUROGAMES_URL}/?game=vault&userId=${userParam}&name=${nameParam}&role=${roleParam}`;
       return;
     }
     setSelectedCard({ id: cardId, title, description });
@@ -200,20 +290,26 @@ export const App: React.FC = () => {
   return (
     <>
       <div 
-        className={`min-h-screen w-full bg-[#FAF7F2] text-[#1A202C] flex flex-col justify-between font-brand-body transition-opacity duration-700 ease-out ${
+        className={`min-h-screen w-full relative text-[#1A202C] flex flex-col justify-between font-brand-body transition-opacity duration-700 ease-out ${
           isMounted ? 'opacity-100' : 'opacity-0'
         } ${getFontSizeClass()} ${
           preferences.highContrast ? 'contrast-125 font-medium' : ''
         }`}
       >
+        {/* Living Organic Unblur Background: White blur with dynamic stretching unblur droplet following cursor */}
+        <OrganicUnblurBackground imageSrc="/meadow-bg.png" />
+
         {/* 1. Header with Time Greeting, Temporal Date, and Settings */}
-        <GreetingHeader
-          userName={userName}
-          onOpenSettings={() => setIsAccessibilityOpen(true)}
-        />
+        <div className="relative z-30">
+          <GreetingHeader
+            userName={userName}
+            onOpenSettings={() => setIsAccessibilityOpen(true)}
+            onOpenLanguage={() => window.dispatchEvent(new CustomEvent('neuronova:open-language-modal'))}
+          />
+        </div>
 
         {/* 2. Main Content Container */}
-        <main className="w-full max-w-6xl mx-auto px-4 sm:px-8 md:px-12 py-6 sm:py-8 flex-grow flex flex-col gap-6 sm:gap-8">
+        <main className="w-full max-w-6xl mx-auto px-4 sm:px-8 md:px-12 py-6 sm:py-8 flex-grow flex flex-col gap-6 sm:gap-8 relative z-10">
           
           {/* Gentle Encouragement & Streak Card with AI Cognitive Reflection */}
           <StreakCard streakDays={3} improvementPercentage={12} userName={userName} userId={userId} />
@@ -234,9 +330,11 @@ export const App: React.FC = () => {
 
         </main>
 
-        {/* 3. Subtle, Warm Footer */}
-        <footer className="w-full border-t border-[#E8DFD1] pt-6 pb-28 sm:pb-32 px-4 text-center text-xs sm:text-sm text-[#1A202C]/60">
-          <p>NeuroNova Daily Companion • Designed with dignity, patience, and love for our elders.</p>
+        {/* 3. Subtle, Compact Warm Glass Footer */}
+        <footer className="w-full border-t border-[#E8DFD1]/50 bg-[#FAF7F2]/60 backdrop-blur-sm py-2.5 sm:py-3 pb-14 sm:pb-16 px-4 text-center text-[#1A202C]/50 shadow-2xs">
+          <p className="text-[11px] sm:text-xs font-normal tracking-wide">
+            {t.footer.companionNote}
+          </p>
         </footer>
       </div>
 
@@ -267,6 +365,24 @@ export const App: React.FC = () => {
         routineSchedule={routineSchedule}
       />
     </>
+  );
+};
+
+export const App: React.FC = () => {
+  const [session, setSession] = useState<UserSession>(() => fetchLoggedInUserSession());
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setSession(fetchLoggedInUserSession());
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  return (
+    <LanguageProvider userId={session.userId}>
+      <PatientHomeContent session={session} />
+    </LanguageProvider>
   );
 };
 

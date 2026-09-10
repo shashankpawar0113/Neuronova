@@ -110,6 +110,11 @@ export interface PatientOverview {
       playCount?: number;
       genre?: string;
     }>;
+    searchHistory?: Array<{
+      query: string;
+      timestamp: string;
+      count?: number;
+    }>;
   };
   wellbeing: {
     recentMoods: Array<{
@@ -134,6 +139,9 @@ export interface PatientOverview {
     combinationInsight: string;
     musicInsight: string;
     recommendations: string[];
+    generatedAt?: string;
+    modelUsed?: string;
+    source?: string;
   };
   voiceActivity?: {
     recentLogs: VoiceAssistantLog[];

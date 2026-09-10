@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { RoutineItem } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface RoutinePreviewProps {
   schedule: RoutineItem[];
@@ -28,6 +29,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
   onMarkDone,
   revealDelay = 0,
 }) => {
+  const { t } = useLanguage();
   // Local state for items
   const [items, setItems] = useState<RoutineItem[]>(schedule);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
@@ -52,14 +54,10 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
     return d;
   };
 
-  // A task is "upcoming" if: not completed AND its scheduled time is in the future (or within the last 5 min)
+  // Show all uncompleted tasks for today sorted chronologically so none are dropped
   const upcomingItems = items
-    .filter(item => {
-      if (item.completed) return false;
-      const taskTime = parseTaskTime(item.time);
-      // Show tasks that haven't passed yet (give a 5-min grace window so "just passed" tasks still show)
-      return taskTime.getTime() >= now.getTime() - 5 * 60 * 1000;
-    })
+    .filter(item => !item.completed)
+    .sort((a, b) => parseTaskTime(a.time).getTime() - parseTaskTime(b.time).getTime())
     .slice(0, 2);
 
   const currentItem = upcomingItems[0];
@@ -70,7 +68,12 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
     const taskTime = parseTaskTime(timeStr);
     const diffMs = taskTime.getTime() - now.getTime();
     const diffMin = Math.round(diffMs / 60_000);
-    if (diffMin <= 0) return 'Right now';
+    if (diffMin < -60) {
+      const hrs = Math.floor(Math.abs(diffMin) / 60);
+      return `${hrs}h ago · Due`;
+    }
+    if (diffMin < 0) return 'Due now';
+    if (diffMin <= 5) return 'Right now';
     if (diffMin < 60) return `in ${diffMin} min`;
     const hrs = Math.floor(diffMin / 60);
     const mins = diffMin % 60;
@@ -117,7 +120,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
   return (
     <section 
       aria-labelledby="routine-preview-heading"
-      className="w-full bg-[#FAF7F2] rounded-3xl border-2 border-river-200/80 p-5 sm:p-7 shadow-warm-md relative overflow-hidden reveal-up"
+      className="w-full bg-white/85 backdrop-blur-md rounded-3xl border-2 border-river-200/80 p-5 sm:p-7 shadow-warm-md relative overflow-hidden reveal-up"
       style={{ '--reveal-delay': `${revealDelay}ms` } as React.CSSProperties}
     >
       {/* Decorative Warm Accent bar on left */}
@@ -131,10 +134,10 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
           </span>
           <div>
             <span className="text-xs sm:text-sm font-bold tracking-wider text-river-700 uppercase font-brand-body">
-              Today's Gentle Routine
+              {t.routine.tagline}
             </span>
             <h2 id="routine-preview-heading" className="text-xl sm:text-2xl font-extrabold text-[#1A202C] font-brand-heading">
-              Up Next For You
+              {t.routine.title}
             </h2>
           </div>
         </div>
@@ -144,7 +147,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
           onClick={onOpenFullSchedule}
           className="min-h-[44px] px-4 py-2 rounded-xl bg-river-50 hover:bg-river-100 text-river-700 font-semibold text-sm sm:text-base inline-flex items-center space-x-1.5 transition-colors border border-river-200 active:scale-98"
         >
-          <span>View all 7 routine steps</span>
+          <span>{t.routine.fullScheduleBtn}</span>
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -207,7 +210,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
               aria-label={`Mark ${currentItem.title} as done`}
             >
               <CheckCircle2 className="w-6 h-6 text-white" aria-hidden="true" />
-              <span>DONE</span>
+              <span>{t.routine.doneBtn}</span>
             </button>
 
             {/* Secondary Action Button: REMIND ME LATER */}
@@ -217,7 +220,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
               aria-label={`Remind me about ${currentItem.title} later`}
             >
               <BellRing className="w-5 h-5 text-river-600" aria-hidden="true" />
-              <span>REMIND ME LATER</span>
+              <span>{t.routine.remindLaterBtn}</span>
             </button>
 
           </div>
@@ -227,10 +230,10 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
         <div className="bg-white rounded-2xl border border-forest-200 p-6 text-center">
           <CheckCircle2 className="w-12 h-12 text-forest-600 mx-auto mb-2" />
           <h3 className="text-xl font-bold text-forest-900 font-brand-heading">
-            All caught up for today!
+            {t.routine.allDoneToday}
           </h3>
           <p className="text-base text-[#1A202C]/80 font-brand-body mt-1">
-            You have completed all planned activities with grace. Rest well and enjoy your afternoon.
+            {t.routine.allDoneDesc}
           </p>
         </div>
       )}
@@ -243,7 +246,7 @@ export const RoutinePreview: React.FC<RoutinePreviewProps> = ({
             <span>{secondItem.title}</span>
           </div>
           <span className="text-xs text-river-700 font-semibold uppercase tracking-wider">
-            Up Next
+            {t.routine.nextUp}
           </span>
         </div>
       )}

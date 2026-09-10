@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { BACKEND_URL } from '../config/urls';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -53,7 +54,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const syncSessionToBackend = (profile: UserProfile) => {
   if (!profile.uid) return;
   try {
-    fetch('http://localhost:5001/api/user/sync-session', {
+    fetch(`${BACKEND_URL}/api/user/sync-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

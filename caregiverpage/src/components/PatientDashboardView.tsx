@@ -27,6 +27,8 @@ interface PatientDashboardViewProps {
   patientInfo: LinkedPatient;
   onRevokeLink: (patientId: string) => Promise<void>;
   isLoading: boolean;
+  onRefreshAI?: () => Promise<void>;
+  isRefreshingAI?: boolean;
 }
 
 export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
@@ -34,6 +36,8 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
   patientInfo,
   onRevokeLink,
   isLoading,
+  onRefreshAI,
+  isRefreshingAI = false,
 }) => {
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
@@ -405,6 +409,8 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
             patientName={patient.name}
             recentGames={cognition.recentGames}
             recentMusicHistory={music.recentHistory}
+            onRefreshAI={onRefreshAI}
+            isRefreshingAI={isRefreshingAI}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -433,7 +439,10 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
                 No routine logs recorded yet today. Routine steps will appear here as your elder marks them.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div 
+                className="space-y-3 overflow-y-auto pr-2 custom-scrollbar"
+                style={{ maxHeight: '420px' }}
+              >
                 {today.routineLogs.map((log) => {
                   const isDone = log.completed;
                   const isMedicine = log.title.toLowerCase().includes('medicine') || log.routineId.includes('med');
@@ -491,8 +500,8 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
           </div>
 
           {/* Cognitive Performance Feed */}
-          <div className="bg-white/95 backdrop-blur-xs rounded-3xl border border-sky-200/90 p-6 sm:p-7 shadow-warm-xs">
-            <div className="flex items-center justify-between mb-5">
+          <div className="bg-white/95 backdrop-blur-xs rounded-3xl border border-sky-200/90 p-6 sm:p-7 shadow-warm-xs flex flex-col">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-sky-700 block">
                   Cognitive Health
@@ -511,23 +520,27 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
                 No brain game scores recorded yet. Scores from Memory Match, Attention, and Cultural Heritage will appear here.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div 
+                className="space-y-3 overflow-y-auto pr-2 custom-scrollbar"
+                style={{ maxHeight: '420px', minHeight: '120px' }}
+              >
                 {cognition.recentGames.map((game, i) => (
                   <div 
                     key={i}
                     className="p-3.5 sm:p-4 rounded-2xl bg-sky-50/40 border border-sky-100 hover:border-sky-200 flex items-center justify-between gap-3 transition-colors"
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-2xs shrink-0">
                         {game.gameType.slice(0, 2).toUpperCase()}
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-[#1A202C]">
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-[#1A202C] truncate">
                           {game.gameType === 'memoryMatch' && 'Memory Match Game'}
                           {game.gameType === 'attentionGame' && 'Attention Focus Game'}
                           {game.gameType === 'sequenceRecall' && 'Sequence Recall Game'}
-                          {game.gameType === 'culturalGame' && 'Cultural Heritage Quiz'}
+                          {(game.gameType === 'culturalGame' || game.gameType === 'culturalHeritageRecall') && 'Cultural Heritage Quiz'}
                           {game.gameType === 'dailyRoutineRecall' && 'Daily Routine Recall'}
+                          {!['memoryMatch', 'attentionGame', 'sequenceRecall', 'culturalGame', 'culturalHeritageRecall', 'dailyRoutineRecall'].includes(game.gameType) && game.gameType.replace(/([A-Z])/g, ' $1').trim()}
                         </div>
                         <p className="text-xs text-[#1A202C]/60 flex items-center gap-1.5 flex-wrap mt-0.5">
                           {game.combinationsReached ? (
@@ -538,12 +551,12 @@ export const PatientDashboardView: React.FC<PatientDashboardViewProps> = ({
                             <span>Level {game.level}</span>
                           )}
                           <span>•</span>
-                          <span>{Math.round(game.responseTimeMs / 1000)}s response time</span>
+                          <span>{Math.round((game.responseTimeMs || 30000) / 1000)}s response time</span>
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span className="text-sm sm:text-base font-extrabold text-sky-900 block font-brand-heading">
                         {game.accuracy}% Accuracy
                       </span>

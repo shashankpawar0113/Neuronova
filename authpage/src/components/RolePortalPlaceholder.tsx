@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth, UserRole } from '../context/AuthContext';
+import { NEUROMUSIC_URL, CAREGIVERPAGE_URL } from '../config/urls';
 
 interface RolePortalPlaceholderProps {
   onBackToAuth: () => void;
@@ -175,7 +176,7 @@ export const RolePortalPlaceholder: React.FC<RolePortalPlaceholderProps> = ({ on
                 </p>
               </div>
               <a
-                href={`http://localhost:5177/?name=${encodeURIComponent(user.name)}&role=caregiver`}
+                href={`${NEUROMUSIC_URL}/?name=${encodeURIComponent(user.name)}&role=caregiver`}
                 className="px-4 py-2.5 rounded-xl bg-forest-700 hover:bg-forest-800 text-white font-bold text-sm shadow-xs transition-colors shrink-0 inline-flex items-center justify-center space-x-1.5"
               >
                 <span>Open Manager →</span>
@@ -205,7 +206,7 @@ export const RolePortalPlaceholder: React.FC<RolePortalPlaceholderProps> = ({ on
               if (user.role === 'caregiver') {
                 const uid = encodeURIComponent(user.uid || `user_${(user.name || 'caregiver').toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
                 const name = encodeURIComponent(user.name || 'Caregiver');
-                window.location.href = `http://localhost:5179/?userId=${uid}&name=${name}&role=caregiver`;
+                window.location.href = `${CAREGIVERPAGE_URL}/?userId=${uid}&name=${name}&role=caregiver`;
                 return;
               }
               alert(`Simulating navigation to ${redirectPath}... (Connecting to ${portal.title})`);

@@ -29,6 +29,7 @@ import {
   ListPlus,
   ChevronRight
 } from 'lucide-react';
+import { BACKEND_URL } from '../config/urls';
 
 /**
  * ============================================================================
@@ -295,7 +296,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
     let active = true;
 
     // Liked songs
-    fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/liked`)
+    fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/liked`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!active || !data) return;
@@ -311,7 +312,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
       });
 
     // Playlists
-    fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/playlists`)
+    fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/playlists`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!active || !data) return;
@@ -327,7 +328,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
       });
 
     // Top Tracks (Patient's actual most-played songs from database)
-    fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/top-tracks?limit=10`)
+    fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/top-tracks?limit=10`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!active || !data) return;
@@ -588,7 +589,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
 
     idsToFetch.forEach((id) => hasFetchedDurationsRef.current.add(id));
 
-    fetch(`http://localhost:5001/api/youtube/details?ids=${idsToFetch.join(',')}`)
+    fetch(`${BACKEND_URL}/api/youtube/details?ids=${idsToFetch.join(',')}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && data.durations) {
@@ -639,7 +640,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
 
     // 1. Record play in central backend for this patient
     if (!isGuest) {
-      fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/record-play`, {
+      fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/record-play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ track: currentSong }),
@@ -890,7 +891,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
 
     // Central backend persistence
     if (!isGuest) {
-      fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/liked/toggle`, {
+      fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/liked/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ song }),
@@ -934,7 +935,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
     setIsCreateModalOpen(false);
 
     if (!isGuest) {
-      fetch(`http://localhost:5001/api/user/${encodeURIComponent(userId)}/music/playlists`, {
+      fetch(`${BACKEND_URL}/api/user/${encodeURIComponent(userId)}/music/playlists`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPl),
@@ -997,7 +998,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
     // 2. Debounced query to YouTube API
     const timer = setTimeout(async () => {
       try {
-        const url = new URL('http://localhost:5001/api/youtube/search');
+        const url = new URL(`${BACKEND_URL}/api/youtube/search`);
         url.searchParams.set('q', q);
         const res = await fetch(url.toString());
         if (res.ok) {
@@ -1007,7 +1008,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
           // Retry with song keyword if query had 0 matches
           if (rawTracks.length === 0 && !/\b(song|songs|gaana|music|audio)\b/i.test(q)) {
             try {
-              const retryUrl = new URL('http://localhost:5001/api/youtube/search');
+              const retryUrl = new URL(`${BACKEND_URL}/api/youtube/search`);
               retryUrl.searchParams.set('q', `${q} song`);
               const retryRes = await fetch(retryUrl.toString());
               if (retryRes.ok) {
@@ -1291,7 +1292,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
 
     try {
       setIsFetchingContextualQueue(true);
-      const url = new URL('http://localhost:5001/api/music/contextual-queue');
+      const url = new URL(`${BACKEND_URL}/api/music/contextual-queue`);
       url.searchParams.set('title', track.title);
       if (track.artist && !track.artist.toLowerCase().includes('youtube') && !track.artist.toLowerCase().includes('nostalgia')) {
         url.searchParams.set('artist', track.artist);
@@ -1497,7 +1498,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
       try {
         const uid = userId || 'default-patient';
         const since = lastProcessedCmdTimestampRef.current;
-        const res = await fetch(`http://localhost:5001/api/player/command?patientId=${encodeURIComponent(uid)}&since=${since}`);
+        const res = await fetch(`${BACKEND_URL}/api/player/command?patientId=${encodeURIComponent(uid)}&since=${since}`);
         if (!res.ok || isCancelled) return;
         const data = await res.json();
         const cmd = data?.command;

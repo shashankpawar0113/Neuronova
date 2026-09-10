@@ -32,10 +32,15 @@ function generateRound(gridSize: number, level: number): Circle[] {
   }));
 }
 
-interface AttentionGameProps { onBack: () => void; }
+interface AttentionGameProps {
+  onBack: () => void;
+  onGameComplete?: (result: GameResult) => void;
+  initialLevel?: number;
+}
 
-export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack }) => {
-  const [level, setLevel] = useState(1);
+export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComplete, initialLevel = 1 }) => {
+  const safeInitialLevel = Math.max(1, Math.min(initialLevel, LEVEL_CONFIGS.length));
+  const [level, setLevel] = useState(safeInitialLevel);
   const [circles, setCircles] = useState<Circle[]>([]);
   const [round, setRound] = useState(1);
   const [correct, setCorrect] = useState(0);
@@ -47,14 +52,14 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack }) => {
   const cfg = LEVEL_CONFIGS[level - 1];
 
   const nextRound = useCallback(() => {
-    setCircles(generateRound(cfg.gridSize, level));
     setFeedback(null);
+    setCircles(generateRound(cfg.gridSize, level));
   }, [cfg.gridSize, level]);
 
-  useEffect(() => { nextRound(); }, [level]);
+  useEffect(() => { nextRound(); }, [nextRound]);
 
   const handleTap = (circle: Circle) => {
-    if (feedback) return;
+    if (result) return;
     setAttempts((a) => a + 1);
     if (circle.isOdd) {
       setCorrect((c) => c + 1);
@@ -73,6 +78,9 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack }) => {
         setTimeout(() => {
           setResult(res);
           persistGameResult(res);
+          if (onGameComplete) {
+            setTimeout(() => onGameComplete(res), 800);
+          }
         }, 600);
         return;
       }

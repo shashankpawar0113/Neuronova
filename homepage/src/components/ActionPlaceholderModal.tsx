@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, ArrowLeft, Sparkles, CheckCircle2, HeartHandshake, Music } from 'lucide-react';
 import { RoutineItem } from '../types';
+import { NEUROGAMES_URL, NEUROMUSIC_URL } from '../config/urls';
 
 interface ActionPlaceholderModalProps {
   isOpen: boolean;
@@ -143,7 +144,7 @@ export const ActionPlaceholderModal: React.FC<ActionPlaceholderModalProps> = ({
 
             <button
               type="button"
-              onClick={() => { window.location.href = 'http://localhost:5178/'; }}
+              onClick={() => { window.location.href = `${NEUROGAMES_URL}/`; }}
               className="w-full min-h-[56px] py-3.5 mb-2 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-lg shadow-warm-md transition-colors flex items-center justify-center space-x-2 cursor-pointer"
             >
               <span>Open Neurogames →</span>
@@ -167,7 +168,7 @@ export const ActionPlaceholderModal: React.FC<ActionPlaceholderModalProps> = ({
             </p>
             <button
               type="button"
-              onClick={() => { window.location.href = 'http://localhost:5178/?game=vault'; }}
+              onClick={() => { window.location.href = `${NEUROGAMES_URL}/?game=vault`; }}
               className="w-full min-h-[56px] py-3.5 mb-2 rounded-2xl bg-muga-500 hover:bg-muga-600 text-white font-extrabold text-lg shadow-warm-md transition-colors flex items-center justify-center space-x-2 cursor-pointer"
             >
               <span>Open Family Memory Vault →</span>
@@ -179,7 +180,7 @@ export const ActionPlaceholderModal: React.FC<ActionPlaceholderModalProps> = ({
               <Music className="w-7 h-7 text-terracotta-600 shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xl font-bold text-terracotta-900 font-brand-heading">
-                  Music Therapy & Familiar Tunes
+                  Music Therapy &amp; Familiar Tunes
                 </h4>
                 <p className="text-sm sm:text-base text-[#1A202C]/80 font-brand-body mt-1">
                   Gentle acoustic sitar, nostalgic golden-era songs, and calming nature soundscapes designed to comfort and soothe.
@@ -194,11 +195,11 @@ export const ActionPlaceholderModal: React.FC<ActionPlaceholderModalProps> = ({
               onClick={() => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const name = urlParams.get('name') || 'Dada Anand';
-                window.location.href = `http://localhost:5177/?name=${encodeURIComponent(name)}&role=patient`;
+                window.location.href = `${NEUROMUSIC_URL}/?name=${encodeURIComponent(name)}&role=patient`;
               }}
               className="w-full min-h-[56px] py-3.5 mb-2 rounded-2xl bg-terracotta-600 hover:bg-terracotta-700 text-white font-extrabold text-lg shadow-warm-md transition-colors flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <span>Open Music & Nostalgia Therapy →</span>
+              <span>Open Music &amp; Nostalgia Therapy →</span>
             </button>
           </div>
         )}

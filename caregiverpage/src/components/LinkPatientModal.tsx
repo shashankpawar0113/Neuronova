@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, HeartHandshake, CheckCircle2, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { BACKEND_URL } from '../config/urls';
 
 interface LinkPatientModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export const LinkPatientModal: React.FC<LinkPatientModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5001/api/caregiver/link', {
+      const response = await fetch(`${BACKEND_URL}/api/caregiver/link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
