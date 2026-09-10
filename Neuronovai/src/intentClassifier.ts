@@ -98,7 +98,41 @@ export function isHindiText(text: string, requestedLang?: string): boolean {
  */
 export function classifyVoiceIntent(input: string, requestedLang?: string): ClassifiedIntent {
   const raw = (input || '').trim();
-  const lower = raw.toLowerCase();
+
+  // ── Server-side phonetic normalizer (mirrors client normalizeSpeech) ─────────
+  const normalize = (t: string): string => {
+    const fixes: [RegExp, string][] = [
+      [/\bmedison\b/gi, 'medicine'],
+      [/\bmedecine\b/gi, 'medicine'],
+      [/\bmedicin\b/gi, 'medicine'],
+      [/\bnextel\b/gi, 'next level'],
+      [/\bnextlevel\b/gi, 'next level'],
+      [/\bnext leval\b/gi, 'next level'],
+      [/\bgo back home page\b/gi, 'go back home'],
+      [/\bhomepage\b/gi, 'home'],
+      [/\bcare lever\b/gi, 'caregiver'],
+      [/\bcaregever\b/gi, 'caregiver'],
+      [/\bcare giver\b/gi, 'caregiver'],
+      [/\bcol karo\b/gi, 'call karo'],
+      [/\bkol karo\b/gi, 'call karo'],
+      [/\bcaall\b/gi, 'call'],
+      [/\bwether\b/gi, 'weather'],
+      [/\bweathe\b/gi, 'weather'],
+      [/\broutin\b/gi, 'routine'],
+      [/\brootine\b/gi, 'routine'],
+      [/\bschedul\b/gi, 'schedule'],
+      [/\bbreakfest\b/gi, 'breakfast'],
+      [/\bexersice\b/gi, 'exercise'],
+      [/\bexercice\b/gi, 'exercise'],
+      [/\bkhaana\b/gi, 'khana'],
+    ];
+    let out = t;
+    fixes.forEach(([re, rep]) => { out = out.replace(re, rep); });
+    return out;
+  };
+
+  const normalizedRaw = normalize(raw);
+  const lower = normalizedRaw.toLowerCase();
   const cleanLower = lower.replace(/[.,!?;:]/g, '').trim();
   const { isHindi, isHinglish, language } = detectLanguageMode(raw, requestedLang);
 
@@ -130,7 +164,8 @@ export function classifyVoiceIntent(input: string, requestedLang?: string): Clas
   // --------------------------------------------------------------------------
   if (
     /^(call|dial|phone|ring|contact)\s+(my\s+)?(caregiver|helper|nurse|family|son|daughter|doctor|ravi|anita)/i.test(lower) ||
-    /\b(call\s+caregiver|caregiver\s+ko\s+call|ravi\s+ko\s+call|doctor\s+ko\s+call|call\s+karo)\b/i.test(lower) ||
+    /\b(call\s+caregiver|caregiver\s+ko\s+call|caregiver\s+call|ravi\s+ko\s+call|doctor\s+ko\s+call|call\s+karo|karo\s+call)\b/i.test(lower) ||
+    /\b(col\s+caregiver|kol\s+caregiver|phone\s+caregiver|caregiver\s+se\s+baat)\b/i.test(lower) ||
     /(?:केयरगिवर|देखभालकर्ता|रवि|डॉक्टर|परिवार)?\s*(?:को\s+)?(?:कॉल\s*करो|फोन\s*करो|बात\s*कराओ)/i.test(raw)
   ) {
     // Extract person if mentioned
@@ -215,9 +250,9 @@ export function classifyVoiceIntent(input: string, requestedLang?: string): Clas
   // 5. GET NEXT MEDICATION (Specific Medicine Inquiry)
   // --------------------------------------------------------------------------
   if (
-    /\b(next\s+medicine|when\s+is\s+my\s+(medicine|pill|medication)|medicine\s+time|next\s+dose)\b/i.test(lower) ||
-    /\b(meri\s+next\s+medicine|dawai\s+kab\s+hai|dawa\s+kab\s+len|agla\s+dawa\s+ka\s+time|goli\s+kab\s+hai)\b/i.test(lower) ||
-    /(?:मेरी\s+)?(?:अगली\s+)?(?:दवाई|दवा|गोली)\s*(?:कब\s+है|का\s+समय|कब\s+लेनी)/i.test(raw)
+    /\b(next\s+medicine|next\s+dose|when\s+is\s+my\s+(medicine|pill|medication|tablet)|medicine\s+time|pill\s+time|tablet\s+time)\b/i.test(lower) ||
+    /\b(meri\s+next\s+medicine|dawai\s+kab\s+hai|dawa\s+kab\s+len|agla\s+dawa|goli\s+kab\s+hai|dawai\s+ka\s+time|dawa\s+ka\s+time)\b/i.test(lower) ||
+    /(?:मेरी\s+)?(?:अगली\s+)?(?:दवाई|दवा|गोली|टैबलेट)\s*(?:कब\s+है|का\s+समय|कब\s+लेनी)/i.test(raw)
   ) {
     return {
       type: 'GET_NEXT_MEDICATION',
@@ -234,8 +269,9 @@ export function classifyVoiceIntent(input: string, requestedLang?: string): Clas
   // 6. START GAMES (Sequential hands-free gaming session)
   // --------------------------------------------------------------------------
   if (
-    /\b(want\s+to\s+play\s+game|play\s+games|start\s+games|play\s+neurogame|play\s+neurogames|brain\s+games)\b/i.test(cleanLower) ||
-    /\b(mujhe\s+games?\s+khelna|games?\s+khelne?\s+hai?n?|game\s+khelo|game\s+shuru\s+karo)\b/i.test(cleanLower) ||
+    /\b(want\s+to\s+play\s+game|play\s+games?|start\s+games?|play\s+neurogame|brain\s+games?|cognitive\s+games?)\b/i.test(cleanLower) ||
+    /\b(game\s+khelna|games?\s+khelna|games?\s+khel|game\s+khelo|game\s+shuru|game\s+lagao|brain\s+game|khelna\s+hai|khelte?\s+hain)\b/i.test(cleanLower) ||
+    /\b(mujhe\s+games?\s+khelna|games?\s+khelne?\s+hai?n?|game\s+khelo|game\s+shuru\s+karo|game\s+lagao)\b/i.test(cleanLower) ||
     /(?:मुझे\s+)?(?:गेम|खेल|दिमागी\s+खेल)\s*(?:खेलना\s*है|खेलने\s*हैं|खेलो|शुरू\s*करो|लगाओ)/i.test(raw)
   ) {
     return {

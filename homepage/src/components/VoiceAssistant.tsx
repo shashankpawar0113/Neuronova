@@ -530,9 +530,87 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       recognitionRef.current = recognition;
       recognition.continuous = false;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 5; // collect top-5 hypotheses for best-pick
 
       // Locale: Hindi (hi-IN) or Indian English/Hinglish (en-IN)
       recognition.lang = selectedLangRef.current === 'hi' ? 'hi-IN' : 'en-IN';
+
+      // ── Phonetic normalizer for common Indian-accent mishearings ──────────────
+      const normalizeSpeech = (text: string): string => {
+        let t = text.trim();
+        // Common mishearings → correct form
+        const fixes: [RegExp, string][] = [
+          [/\bmedison\b/gi, 'medicine'],
+          [/\bmedicine\b/gi, 'medicine'],
+          [/\bdawai\b/gi, 'dawai'],
+          [/\bdawa\b/gi, 'dawa'],
+          [/\bgoli\b/gi, 'goli'],
+          [/\bkhaana\b/gi, 'khana'],
+          [/\bkarna\b/gi, 'karna'],
+          [/\bnext level\b/gi, 'next level'],
+          [/\bnextel\b/gi, 'next level'],
+          [/\bnextlevel\b/gi, 'next level'],
+          [/\bhome page\b/gi, 'homepage'],
+          [/\bgo back\b/gi, 'go back home'],
+          [/\bplay music\b/gi, 'play music'],
+          [/\bplay some music\b/gi, 'play music'],
+          [/\bcaregiver col\b/gi, 'call caregiver'],
+          [/\bcare giver\b/gi, 'caregiver'],
+          [/\bcaregever\b/gi, 'caregiver'],
+          [/\bcare lever\b/gi, 'caregiver'],
+          [/\bkol karo\b/gi, 'call karo'],
+          [/\bcol karo\b/gi, 'call karo'],
+          [/\bwether\b/gi, 'weather'],
+          [/\bweathe\b/gi, 'weather'],
+          [/\bwhat is weather\b/gi, 'what is the weather'],
+          [/\bschedule\b/gi, 'schedule'],
+          [/\broutin\b/gi, 'routine'],
+          [/\brootine\b/gi, 'routine'],
+          [/\breminder\b/gi, 'reminder'],
+          [/\bkhabar\b/gi, 'khabar'],
+          [/\btell me story\b/gi, 'tell me a story'],
+          [/\bstory sunao\b/gi, 'story sunao'],
+          [/\bexersice\b/gi, 'exercise'],
+          [/\bexercice\b/gi, 'exercise'],
+          [/\bbreakfest\b/gi, 'breakfast'],
+        ];
+        fixes.forEach(([re, replacement]) => { t = t.replace(re, replacement); });
+        return t;
+      };
+
+      // ── Pick best hypothesis from top-N alternatives ──────────────────────────
+      const pickBestAlternative = (results: SpeechRecognitionResultList, resultIndex: number): string => {
+        // Collect all final result alternatives
+        const candidates: Array<{ text: string; confidence: number }> = [];
+        for (let i = resultIndex; i < results.length; ++i) {
+          if (results[i].isFinal) {
+            for (let j = 0; j < results[i].length; j++) {
+              const alt = results[i][j];
+              candidates.push({ text: alt.transcript, confidence: alt.confidence || 0 });
+            }
+          }
+        }
+        if (candidates.length === 0) return '';
+        // Score each: prefer high confidence AND recognized action keywords
+        const actionKeywords = [
+          'medicine','dawai','dawa','goli','music','game','games','call','caregiver',
+          'weather','routine','schedule','story','exercise','khana','nashta','paani',
+          'water','next','level','home','message','bhejo','karo','chalao','sunao',
+          'बताओ','दवाई','दवा','गोली','खाना','पानी','कॉल','संगीत','खेल'
+        ];
+        let best = candidates[0];
+        let bestScore = -1;
+        for (const c of candidates) {
+          const normalized = normalizeSpeech(c.text.toLowerCase());
+          const keywordHits = actionKeywords.filter(k => normalized.includes(k)).length;
+          const score = (c.confidence * 10) + keywordHits;
+          if (score > bestScore) {
+            bestScore = score;
+            best = c;
+          }
+        }
+        return normalizeSpeech(best.text.trim());
+      };
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -543,14 +621,11 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       recognition.onresult = (event: any) => {
         hasSpokenRef.current = true;
         let interim = '';
-        let final = '';
 
+        // Show interim from best alternative
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const text = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            final += text;
-          } else {
-            interim += text;
+          if (!event.results[i].isFinal) {
+            interim += event.results[i][0].transcript;
           }
         }
 
@@ -558,13 +633,19 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           setInterimTranscript(interim);
         }
 
-        if (final) {
-          setInterimTranscript('');
-          const trimmed = final.trim();
-          setTranscript(`"${trimmed}"`);
-          setIsListening(false);
-          setActionStage('understanding');
-          void processUserIntent(trimmed);
+        // Check for any final result — pick best alternative
+        const hasFinal = Array.from({ length: event.results.length - event.resultIndex },
+          (_, k) => event.results[event.resultIndex + k].isFinal).some(Boolean);
+
+        if (hasFinal) {
+          const best = pickBestAlternative(event.results, event.resultIndex);
+          if (best) {
+            setInterimTranscript('');
+            setTranscript(`"${best}"`);
+            setIsListening(false);
+            setActionStage('understanding');
+            void processUserIntent(best);
+          }
         }
       };
 
