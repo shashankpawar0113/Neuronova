@@ -146,7 +146,7 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
     } catch (_) {}
     isSpeakingRef.current = false;
 
-    const maxSessionLevel = 7;
+    const maxSessionLevel = 8;
     const isAtMax = sessionLevelRef.current >= maxSessionLevel;
     const nextLvl = isAtMax ? maxSessionLevel : sessionLevelRef.current + 1;
     setVoiceFeedback(isAtMax ? `✓ Replaying Level ${maxSessionLevel} (Master)...` : `✓ Starting Level ${nextLvl}...`);
@@ -502,10 +502,10 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
                 </div>
                 <div>
                   <div className="leading-tight text-sm">
-                    {sessionLevel >= 7 ? 'Replay Master Level (Level 7)' : `Play Next Level (Level ${sessionLevel + 1})`}
+                    {sessionLevel >= 8 ? 'Replay Master Level (Level 8)' : `Play Next Level (Level ${sessionLevel + 1})`}
                   </div>
                   <div className="text-[10px] text-amber-100 font-medium">
-                    {sessionLevel >= 7 ? 'Practice games at highest challenge level' : `Starts all games at Level ${sessionLevel + 1}`}
+                    {sessionLevel >= 8 ? 'Practice games at highest challenge level' : `Starts all games at Level ${sessionLevel + 1}`}
                   </div>
                 </div>
               </div>

@@ -5,15 +5,16 @@ import { GameResultScreen } from '../components/GameResultScreen';
 import { GameResult } from '../types';
 import { persistGameResult } from '../services/gamePersistence';
 
-// 7 progressive difficulty levels for Attention Game (max 3x3 grid)
+// 8 progressive difficulty levels for Attention Game (max 3x3 grid)
 const LEVEL_CONFIGS = [
-  { label: 'Level 1 — very clear difference',   gridSize: 4, roundsToWin: 5, hueDelta: [80, 110], sVariance: 0,  lVariance: 0 },
-  { label: 'Level 2 — clear difference',         gridSize: 9, roundsToWin: 6, hueDelta: [50, 70],  sVariance: 0,  lVariance: 0 },
-  { label: 'Level 3 — moderate contrast',        gridSize: 9, roundsToWin: 6, hueDelta: [32, 45],  sVariance: 4,  lVariance: 0 },
-  { label: 'Level 4 — subtle difference',        gridSize: 9, roundsToWin: 7, hueDelta: [22, 30],  sVariance: 6,  lVariance: 3 },
-  { label: 'Level 5 — tricky contrast',          gridSize: 9, roundsToWin: 7, hueDelta: [15, 21],  sVariance: 8,  lVariance: 5 },
-  { label: 'Level 6 — expert difference',        gridSize: 9, roundsToWin: 8, hueDelta: [11, 15],  sVariance: 10, lVariance: 6 },
-  { label: 'Level 7 — master challenge',         gridSize: 9, roundsToWin: 8, hueDelta: [8,  12],  sVariance: 12, lVariance: 7 },
+  { label: 'Level 1 — very clear difference',   gridSize: 4, roundsToWin: 5,  hueDelta: [70, 95],   sVariance: 0,   lVariance: 0   },
+  { label: 'Level 2 — clear difference',         gridSize: 9, roundsToWin: 6,  hueDelta: [40, 55],   sVariance: 0,   lVariance: 0   },
+  { label: 'Level 3 — moderate contrast',        gridSize: 9, roundsToWin: 6,  hueDelta: [25, 36],   sVariance: 3,   lVariance: 0   },
+  { label: 'Level 4 — subtle difference',        gridSize: 9, roundsToWin: 7,  hueDelta: [16, 24],   sVariance: 5,   lVariance: 2   },
+  { label: 'Level 5 — tricky contrast',          gridSize: 9, roundsToWin: 7,  hueDelta: [10, 16],   sVariance: 6,   lVariance: 3   },
+  { label: 'Level 6 — expert difference',        gridSize: 9, roundsToWin: 8,  hueDelta: [6.5, 9.5], sVariance: 4,   lVariance: 3   },
+  { label: 'Level 7 — master challenge',         gridSize: 9, roundsToWin: 8,  hueDelta: [4.0, 6.0], sVariance: 3,   lVariance: 2   },
+  { label: 'Level 8 — almost impossible',        gridSize: 9, roundsToWin: 10, hueDelta: [2.0, 3.5], sVariance: 1.5, lVariance: 1.5 },
 ];
 
 type Circle = { id: number; hsl: string; isOdd: boolean };
@@ -38,7 +39,7 @@ function generateRound(cfg: typeof LEVEL_CONFIGS[0]): Circle[] {
   return Array.from({ length: cfg.gridSize }, (_, i) => ({
     id: i,
     hsl: i === oddIdx
-      ? `hsl(${oddH.toFixed(0)}, ${Math.min(95, Math.max(30, oddS)).toFixed(0)}%, ${Math.min(75, Math.max(35, oddL)).toFixed(0)}%)`
+      ? `hsl(${oddH.toFixed(1)}, ${Math.min(95, Math.max(30, oddS)).toFixed(1)}%, ${Math.min(75, Math.max(35, oddL)).toFixed(1)}%)`
       : `hsl(${baseH}, ${baseS}%, ${baseL}%)`,
     isOdd: i === oddIdx,
   }));

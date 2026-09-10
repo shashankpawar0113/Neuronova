@@ -43,7 +43,7 @@ const GAMES: Game[] = [
     iconBg: 'bg-river-500 text-white',
     cardBg: 'bg-river-50/90 hover:bg-river-100',
     cardBorder: 'border-river-300 hover:border-river-500',
-    badge: '7 levels · 4–9 circles (max 3×3)',
+    badge: '8 levels · 4–9 circles (max 3×3)',
     badgeBg: 'bg-river-100 text-river-800 border-river-200',
     cognitive: 'Visual Attention',
   },
