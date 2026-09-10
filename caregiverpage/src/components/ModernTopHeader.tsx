@@ -19,7 +19,8 @@ import {
   ArrowRight,
   Mic,
   CalendarCheck,
-  ShieldCheck
+  ShieldCheck,
+  Flame,
 } from 'lucide-react';
 import { LinkedPatient, PatientOverview } from '../types';
 import { AUTHPAGE_URL, BACKEND_URL } from '../config/urls';
@@ -129,6 +130,50 @@ export const ModernTopHeader: React.FC<ModernTopHeaderProps> = ({
       },
     ]);
   };
+
+  // Inject streak-ending-soon alerts whenever patient list updates
+  useEffect(() => {
+    if (!patients || patients.length === 0) return;
+    const now = Date.now();
+    const STREAK_WARNING_HOURS = 16; // alert starts at 16h inactivity
+    const STREAK_EXPIRY_HOURS = 24;  // streak dies at 24h
+
+    const streakAlerts: NotificationItem[] = [];
+    for (const p of patients) {
+      if (!p.lastActiveAt) continue;
+      const lastActive = new Date(p.lastActiveAt).getTime();
+      const hoursInactive = (now - lastActive) / (1000 * 60 * 60);
+      if (hoursInactive >= STREAK_WARNING_HOURS && hoursInactive < STREAK_EXPIRY_HOURS) {
+        const hoursLeft = Math.max(0, STREAK_EXPIRY_HOURS - hoursInactive);
+        const minsLeft = Math.round((hoursLeft % 1) * 60);
+        const timeLabel = hoursLeft < 1
+          ? `${minsLeft}min`
+          : `${Math.floor(hoursLeft)}h ${minsLeft}min`;
+        streakAlerts.push({
+          id: `streak_alert_${p.patientId}`,
+          type: 'STREAK_ALERT',
+          title: `Streak Ending Soon — ${p.patientName}`,
+          description: `${p.patientName} hasn't been active for ${Math.floor(hoursInactive)}h. Their daily streak will expire in ~${timeLabel}. Encourage them to do a quick game or routine check-in!`,
+          timeAgo: `${Math.floor(hoursInactive)}h inactive`,
+          isUnread: true,
+          relatedEntityId: p.patientId,
+        });
+      }
+    }
+
+    if (streakAlerts.length > 0) {
+      setNotifications(prev => {
+        // Remove stale streak alerts, then prepend fresh ones
+        const withoutOld = prev.filter(n => n.type !== 'STREAK_ALERT');
+        return [...streakAlerts, ...withoutOld];
+      });
+      // Auto-open bell panel so caregiver sees it immediately
+      setIsNotificationOpen(true);
+    } else {
+      // Clear any stale streak alerts when patient becomes active again
+      setNotifications(prev => prev.filter(n => n.type !== 'STREAK_ALERT'));
+    }
+  }, [patients]);
 
   useEffect(() => {
     loadNotifications();
@@ -261,6 +306,8 @@ export const ModernTopHeader: React.FC<ModernTopHeaderProps> = ({
     switch (type) {
       case 'HEALTH_WORKER_ACCESS_REQUEST':
         return <ShieldCheck className="w-4 h-4 text-sky-600" />;
+      case 'STREAK_ALERT':
+        return <Flame className="w-4 h-4 text-orange-500" />;
       case 'cognitive':
         return <Sparkles className="w-4 h-4 text-[#E86D7C]" />;
       case 'medication':
@@ -796,6 +843,45 @@ export const ModernTopHeader: React.FC<ModernTopHeaderProps> = ({
                             </button>
                           </div>
                         )}
+                      </div>
+                    ) : n.type === 'STREAK_ALERT' ? (
+                      <div
+                        key={n.id}
+                        className="p-3.5 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50/60 transition-all flex items-start space-x-3 group relative animate-pulse-once"
+                      >
+                        {/* Flame Icon */}
+                        <div className="p-2 rounded-xl bg-orange-100 border border-orange-200 shadow-xs shrink-0 mt-0.5">
+                          <Flame className="w-4 h-4 text-orange-500" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-black text-orange-900 truncate">
+                              {n.title}
+                            </span>
+                            <span className="text-[10px] font-bold text-orange-500 shrink-0 bg-orange-100 px-1.5 py-0.5 rounded-full">
+                              {n.timeAgo}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-orange-800/90 mt-1 leading-relaxed font-medium">
+                            {n.description}
+                          </p>
+                          {/* Urgency bar */}
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <div className="h-1 flex-1 rounded-full bg-orange-100 overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-orange-400 to-red-400 rounded-full animate-pulse" style={{ width: '75%' }} />
+                            </div>
+                            <span className="text-[10px] font-bold text-orange-600">Streak at risk</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDismissNotification(n.id)}
+                          className="opacity-0 group-hover:opacity-100 text-orange-400 hover:text-orange-700 transition-opacity cursor-pointer p-0.5 shrink-0"
+                          title="Dismiss"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ) : (
                       <div

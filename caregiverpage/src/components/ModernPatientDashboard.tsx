@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { PatientOverview, LinkedPatient } from '../types';
 import { NEUROMUSIC_URL, NEUROGAMES_URL, BACKEND_URL } from '../config/urls';
+import { UnlinkConfirmationModal } from './UnlinkConfirmationModal';
 
 interface ModernPatientDashboardProps {
   overview: PatientOverview;
@@ -60,6 +61,7 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
   // "More Details" states for Brain Games and Music
   const [showGamesDetails, setShowGamesDetails] = useState(false);
   const [showMusicDetails, setShowMusicDetails] = useState(false);
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
 
   // Sub-tab for Music: 'played' | 'liked' | 'search'
   const [musicSubTab, setMusicSubTab] = useState<'played' | 'liked' | 'search'>('played');
@@ -281,11 +283,7 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
             </button>
             {onRevokeLink && (
               <button
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to unlink ${patient.name || patientInfo.patientName}?`)) {
-                    onRevokeLink(patientInfo.patientId);
-                  }
-                }}
+                onClick={() => setIsUnlinkModalOpen(true)}
                 className="text-xs text-stone-400 hover:text-rose-600 font-semibold px-2 py-1 transition-colors cursor-pointer"
                 title="Unlink this patient"
               >
@@ -1467,6 +1465,18 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
         )}
 
       </div>
+
+      {/* 2-Step Unlink Confirmation Modal */}
+      {onRevokeLink && (
+        <UnlinkConfirmationModal
+          isOpen={isUnlinkModalOpen}
+          onClose={() => setIsUnlinkModalOpen(false)}
+          patientName={patient.name || patientInfo.patientName || 'Loved One'}
+          relationship={patientInfo.relationship || 'Loved One'}
+          patientId={patientInfo.patientId}
+          onConfirmUnlink={onRevokeLink}
+        />
+      )}
 
     </div>
   );
