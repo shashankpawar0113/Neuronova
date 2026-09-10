@@ -10,7 +10,7 @@ const QUESTIONS = [
   {
     id: 'q1',
     Icon: Landmark,
-    image: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/1200px-Taj_Mahal_%28Edited%29.jpeg',
     prompt: 'Which famous white marble monument of love is shown in the picture?',
     answer: 'Taj Mahal',
     options: ['Taj Mahal', 'Red Fort', 'Qutub Minar', 'India Gate'],
@@ -19,7 +19,7 @@ const QUESTIONS = [
   {
     id: 'q2',
     Icon: Flower2,
-    image: 'https://images.unsplash.com/photo-1616788494707-ec28f08d05a1?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Holi_festival_2013.jpg/1200px-Holi_festival_2013.jpg',
     prompt: 'Which joyful festival of colors and spring is shown in the picture?',
     answer: 'Holi',
     options: ['Holi', 'Diwali', 'Navratri', 'Eid'],
@@ -28,7 +28,7 @@ const QUESTIONS = [
   {
     id: 'q3',
     Icon: Sun,
-    image: 'https://images.unsplash.com/photo-1605629921711-2f6b00c6bbf4?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Diya_-_oil_lamp.jpg/1200px-Diya_-_oil_lamp.jpg',
     prompt: 'Which festival of lights is celebrated by lighting these earthen diyas?',
     answer: 'Diwali',
     options: ['Diwali', 'Baisakhi', 'Onam', 'Pongal'],
@@ -37,7 +37,7 @@ const QUESTIONS = [
   {
     id: 'q4',
     Icon: Music2,
-    image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Ravi_Shankar_1982.jpg/800px-Ravi_Shankar_1982.jpg',
     prompt: 'Which classical Indian string instrument is shown here?',
     answer: 'Sitar',
     options: ['Sitar', 'Tabla', 'Veena', 'Flute'],
@@ -46,7 +46,7 @@ const QUESTIONS = [
   {
     id: 'q5',
     Icon: Mountain,
-    image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg/1200px-Everest_North_Face_toward_Base_Camp_Tibet_Luca_Galuzzi_2006.jpg',
     prompt: 'What is the name of the highest mountain peak on Earth shown here?',
     answer: 'Mount Everest',
     options: ['Mount Everest', 'K2', 'Kangchenjunga', 'Annapurna'],
@@ -55,7 +55,7 @@ const QUESTIONS = [
   {
     id: 'q6',
     Icon: Leaf,
-    image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Masala_Chai.JPG/1200px-Masala_Chai.JPG',
     prompt: 'Which beloved hot morning beverage, famous across Assam and Darjeeling, is shown here?',
     answer: 'Chai (Tea)',
     options: ['Chai (Tea)', 'Coffee', 'Lassi', 'Coconut Water'],
@@ -64,7 +64,7 @@ const QUESTIONS = [
   {
     id: 'q7',
     Icon: Star,
-    image: 'https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Indian_Peacock_Pavo_cristatus.jpg/1200px-Indian_Peacock_Pavo_cristatus.jpg',
     prompt: 'Which magnificent bird with colorful feathers is the National Bird of India?',
     answer: 'Peacock (Mor)',
     options: ['Peacock (Mor)', 'Parrot (Tota)', 'Kingfisher', 'Swan (Hans)'],
@@ -73,7 +73,7 @@ const QUESTIONS = [
   {
     id: 'q8',
     Icon: Globe,
-    image: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/ChessStartingPosition.jpg/1200px-ChessStartingPosition.jpg',
     prompt: 'Which ancient strategy board game originated in India as "Chaturanga"?',
     answer: 'Chess',
     options: ['Chess', 'Ludo', 'Carrom', 'Snakes & Ladders'],
@@ -82,7 +82,7 @@ const QUESTIONS = [
   {
     id: 'q9',
     Icon: Flower2,
-    image: 'https://images.unsplash.com/photo-1599839575945-a9e5af0c3fa5?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Varanasi_-_Ganga_Aarti_%286%29.jpg/1200px-Varanasi_-_Ganga_Aarti_%286%29.jpg',
     prompt: 'Which sacred river flows through the holy city of Varanasi shown here?',
     answer: 'Ganga',
     options: ['Ganga', 'Yamuna', 'Godavari', 'Narmada'],
@@ -91,7 +91,7 @@ const QUESTIONS = [
   {
     id: 'q10',
     Icon: Landmark,
-    image: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&auto=format&fit=crop&q=80',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Meenakshi_amman_temple.jpg/800px-Meenakshi_amman_temple.jpg',
     prompt: 'What type of magnificent ancient Indian temple tower is shown in this picture?',
     answer: 'Temple Gopuram',
     options: ['Temple Gopuram', 'Fort Gate', 'Royal Palace', 'Stepwell'],
@@ -215,6 +215,17 @@ export const CulturalGame: React.FC<CulturalGameProps> = ({ onBack }) => {
               alt={answer}
               className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
               loading="lazy"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector('.img-fallback')) {
+                  const fb = document.createElement('div');
+                  fb.className = 'img-fallback w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100';
+                  fb.innerHTML = `<div style="font-size:4rem;opacity:0.5">🖼️</div><p style="font-size:0.75rem;color:#888;margin-top:0.5rem">Image loading…</p>`;
+                  parent.appendChild(fb);
+                }
+              }}
             />
             {/* Visual guide badge */}
             <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full text-white text-xs font-bold flex items-center gap-1.5 shadow-sm">
