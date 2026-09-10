@@ -146,8 +146,10 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
     } catch (_) {}
     isSpeakingRef.current = false;
 
-    const nextLvl = sessionLevelRef.current + 1;
-    setVoiceFeedback(`✓ Starting Level ${nextLvl}...`);
+    const maxSessionLevel = 7;
+    const isAtMax = sessionLevelRef.current >= maxSessionLevel;
+    const nextLvl = isAtMax ? maxSessionLevel : sessionLevelRef.current + 1;
+    setVoiceFeedback(isAtMax ? `✓ Replaying Level ${maxSessionLevel} (Master)...` : `✓ Starting Level ${nextLvl}...`);
 
     setTimeout(() => {
       setSessionLevel(nextLvl);
@@ -499,8 +501,12 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <div className="leading-tight text-sm">Play Next Level (Level {sessionLevel + 1})</div>
-                  <div className="text-[10px] text-amber-100 font-medium">Starts all games at Level {sessionLevel + 1}</div>
+                  <div className="leading-tight text-sm">
+                    {sessionLevel >= 7 ? 'Replay Master Level (Level 7)' : `Play Next Level (Level ${sessionLevel + 1})`}
+                  </div>
+                  <div className="text-[10px] text-amber-100 font-medium">
+                    {sessionLevel >= 7 ? 'Practice games at highest challenge level' : `Starts all games at Level ${sessionLevel + 1}`}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-extrabold shrink-0">

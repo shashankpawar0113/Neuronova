@@ -5,28 +5,39 @@ import { GameResultScreen } from '../components/GameResultScreen';
 import { GameResult } from '../types';
 import { persistGameResult } from '../services/gamePersistence';
 
-// Color pairs per level: [baseHue, oddHue] in HSL
+// 6 progressive difficulty levels for Attention Game
 const LEVEL_CONFIGS = [
-  { label: 'Gentle — clear difference', gridSize: 4, roundsToWin: 5 },
-  { label: 'Steady — moderate contrast', gridSize: 6, roundsToWin: 7 },
-  { label: 'Sharp — subtle difference', gridSize: 9, roundsToWin: 10 },
+  { label: 'Level 1 — very clear difference',   gridSize: 4,  roundsToWin: 5,  hueDelta: [90, 120], sVariance: 0,  lVariance: 0   },
+  { label: 'Level 2 — clear difference',         gridSize: 6,  roundsToWin: 6,  hueDelta: [55, 75],  sVariance: 0,  lVariance: 0   },
+  { label: 'Level 3 — moderate contrast',        gridSize: 9,  roundsToWin: 7,  hueDelta: [28, 45],  sVariance: 5,  lVariance: 0   },
+  { label: 'Level 4 — subtle difference',        gridSize: 12, roundsToWin: 8,  hueDelta: [18, 28],  sVariance: 8,  lVariance: 5   },
+  { label: 'Level 5 — very subtle difference',   gridSize: 16, roundsToWin: 9,  hueDelta: [12, 18],  sVariance: 10, lVariance: 7   },
+  { label: 'Level 6 — expert — challenging contrast', gridSize: 16, roundsToWin: 10, hueDelta: [9, 15], sVariance: 12, lVariance: 8 },
 ];
 
 type Circle = { id: number; hsl: string; isOdd: boolean };
 
-function generateRound(gridSize: number, level: number): Circle[] {
+function generateRound(cfg: typeof LEVEL_CONFIGS[0]): Circle[] {
   const baseH = Math.floor(Math.random() * 360);
-  const baseS = 65 + Math.floor(Math.random() * 20);
-  const baseL = 52 + Math.floor(Math.random() * 10);
-  // Odd one differs more at low levels, subtly at higher
-  const hueDelta = level === 1 ? 60 + Math.random() * 60 : level === 2 ? 25 + Math.random() * 25 : 12 + Math.random() * 12;
-  const oddH = (baseH + hueDelta) % 360;
-  const oddIdx = Math.floor(Math.random() * gridSize);
+  const baseS = 60 + Math.floor(Math.random() * 20);   // 60–80%
+  const baseL = 50 + Math.floor(Math.random() * 10);   // 50–60%
 
-  return Array.from({ length: gridSize }, (_, i) => ({
+  // Odd hue delta: random within the range for this level
+  const [minDelta, maxDelta] = cfg.hueDelta;
+  const hueDelta = minDelta + Math.random() * (maxDelta - minDelta);
+  const oddH = (baseH + hueDelta) % 360;
+
+  // At higher levels also slightly vary saturation/lightness of odd circle
+  const oddS = baseS + (Math.random() > 0.5 ? 1 : -1) * (Math.random() * cfg.sVariance);
+  const oddL = baseL + (Math.random() > 0.5 ? 1 : -1) * (Math.random() * cfg.lVariance);
+
+  // ALWAYS place exactly one odd circle — guaranteed
+  const oddIdx = Math.floor(Math.random() * cfg.gridSize);
+
+  return Array.from({ length: cfg.gridSize }, (_, i) => ({
     id: i,
     hsl: i === oddIdx
-      ? `hsl(${oddH}, ${baseS}%, ${baseL}%)`
+      ? `hsl(${oddH.toFixed(0)}, ${Math.min(95, Math.max(30, oddS)).toFixed(0)}%, ${Math.min(75, Math.max(35, oddL)).toFixed(0)}%)`
       : `hsl(${baseH}, ${baseS}%, ${baseL}%)`,
     isOdd: i === oddIdx,
   }));
@@ -53,8 +64,8 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComp
 
   const nextRound = useCallback(() => {
     setFeedback(null);
-    setCircles(generateRound(cfg.gridSize, level));
-  }, [cfg.gridSize, level]);
+    setCircles(generateRound(cfg));
+  }, [cfg]);
 
   useEffect(() => { nextRound(); }, [nextRound]);
 
@@ -92,13 +103,14 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComp
   };
 
   const resetGame = (lvl = level) => {
-    setLevel(lvl);
+    const newCfg = LEVEL_CONFIGS[Math.max(0, Math.min(lvl - 1, LEVEL_CONFIGS.length - 1))];
+    setLevel(Math.max(1, Math.min(lvl, LEVEL_CONFIGS.length)));
     setRound(1);
     setCorrect(0);
     setAttempts(0);
     setFeedback(null);
     setResult(null);
-    setCircles(generateRound(LEVEL_CONFIGS[lvl - 1].gridSize, lvl));
+    setCircles(generateRound(newCfg));
   };
 
   if (result) {
@@ -115,7 +127,16 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComp
     );
   }
 
-  const cols = cfg.gridSize === 4 ? 'grid-cols-2' : cfg.gridSize === 6 ? 'grid-cols-3' : 'grid-cols-3';
+  const cols =
+    cfg.gridSize <= 4  ? 'grid-cols-2' :
+    cfg.gridSize <= 6  ? 'grid-cols-3' :
+    cfg.gridSize <= 9  ? 'grid-cols-3' :
+    cfg.gridSize <= 12 ? 'grid-cols-4' : 'grid-cols-4';
+
+  const circleSize =
+    cfg.gridSize <= 6  ? 'w-20 h-20 sm:w-24 sm:h-24' :
+    cfg.gridSize <= 9  ? 'w-16 h-16 sm:w-20 sm:h-20' :
+    cfg.gridSize <= 12 ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-12 h-12 sm:w-14 sm:h-14';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col">
@@ -138,12 +159,12 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComp
           {feedback === 'wrong' && <p className="text-terracotta-600 font-bold text-sm mt-1 animate-fade-in">Keep looking — one circle is different!</p>}
         </div>
 
-        <div className={`grid ${cols} gap-4 sm:gap-6`}>
+        <div className={`grid ${cols} gap-3 sm:gap-4`}>
           {circles.map((circle) => (
             <button
               key={circle.id}
               onClick={() => handleTap(circle)}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer shadow-md border-2 border-white/30"
+              className={`${circleSize} rounded-full transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer shadow-md border-2 border-white/30`}
               style={{ backgroundColor: circle.hsl }}
               aria-label="Circle"
             />

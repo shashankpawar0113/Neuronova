@@ -95,9 +95,22 @@ interface SequenceRecallGameProps {
   initialLevel?: number;
 }
 
+// 7 levels: controls starting sequence length and how many pads are active
+const SEQUENCE_LEVEL_CONFIG = [
+  { label: 'Level 1 — 3 steps, 4 pads',   initSteps: 3, padsActive: 4,  maxSteps: 5  },
+  { label: 'Level 2 — 4 steps, 6 pads',   initSteps: 4, padsActive: 6,  maxSteps: 6  },
+  { label: 'Level 3 — 5 steps, 9 pads',   initSteps: 5, padsActive: 9,  maxSteps: 7  },
+  { label: 'Level 4 — 6 steps, 9 pads',   initSteps: 6, padsActive: 9,  maxSteps: 8  },
+  { label: 'Level 5 — 7 steps, 9 pads',   initSteps: 7, padsActive: 9,  maxSteps: 9  },
+  { label: 'Level 6 — 8 steps, 9 pads',   initSteps: 8, padsActive: 9,  maxSteps: 10 },
+  { label: 'Level 7 — 9 steps, 9 pads',   initSteps: 9, padsActive: 9,  maxSteps: 12 },
+];
+
 export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, onGameComplete, initialLevel = 1 }) => {
-  // Continuous Combination Streak mode: starts at 3 steps (or higher for level 2+), increases as user passes
-  const initialComboLen = Math.min(2 + initialLevel, 6);
+  const safeLevel = Math.max(1, Math.min(initialLevel, SEQUENCE_LEVEL_CONFIG.length));
+  const [level, setLevel] = useState(safeLevel);
+  const levelCfg = SEQUENCE_LEVEL_CONFIG[level - 1];
+  const initialComboLen = levelCfg.initSteps;
   const [comboLength, setComboLength] = useState(initialComboLen);
   const [combinationsReached, setCombinationsReached] = useState(0);
   const [sequence, setSequence] = useState<number[]>([]);
@@ -113,10 +126,10 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
   const [isShowingSeq, setIsShowingSeq] = useState(false);
   const cancelRef = useRef(false);
 
-  // Generate sequence of exact combination length from the 9 boxes (0-8)
-  const buildSequence = useCallback((len: number) => {
-    return Array.from({ length: len }, () => Math.floor(Math.random() * 9));
-  }, []);
+  // Generate sequence using only padsActive pads (lower levels use fewer pad colors)
+  const buildSequence = useCallback((len: number, pads = levelCfg.padsActive) => {
+    return Array.from({ length: len }, () => Math.floor(Math.random() * pads));
+  }, [levelCfg.padsActive]);
 
   // Gentle, calm, and predictable playback pace across all combinations
   // Elderly safety: Never speed up playback
@@ -141,23 +154,23 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
     setPhase('repeat');
   }, []);
 
-  const startRound = useCallback((len: number) => {
-    const seq = buildSequence(len);
+  const startRound = useCallback((len: number, pads = levelCfg.padsActive) => {
+    const seq = buildSequence(len, pads);
     setSequence(seq);
     setPlayerSeq([]);
     setFeedback(null);
     setSuccessAnimation(false);
     setTotalAttempts((a) => a + 1);
     playSequence(seq);
-  }, [buildSequence, playSequence]);
+  }, [buildSequence, playSequence, levelCfg.padsActive]);
 
   // Initial round start
   useEffect(() => {
-    startRound(initialComboLen);
+    startRound(initialComboLen, levelCfg.padsActive);
     return () => {
       cancelRef.current = true;
     };
-  }, [initialComboLen, startRound]);
+  }, [initialComboLen, levelCfg.padsActive, startRound]);
 
   // Finish session and record progress to backend
   const finishSession = (finalMaxCombo = combinationsReached) => {
@@ -168,7 +181,7 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
     
     const res: GameResult = {
       gameType: 'sequenceRecall',
-      level: effectiveMax || 3, // Records combination depth reached
+      level,
       accuracy: acc,
       responseTimeMs: elapsed,
       attempts: totalAttempts,
@@ -219,8 +232,10 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
       setFeedback(`✨ Superb! Combination passed (${comboLength} steps)`);
       setPhase('watch');
 
-      // In sequential mode, completing 4 steps marks the game as successfully finished
-      if (onGameComplete && comboLength >= 4) {
+      // Target steps to win level: in daily sequential mode finish after 2 combos
+      // In standalone mode finish upon reaching maxSteps for this level
+      const targetSteps = onGameComplete ? levelCfg.initSteps + 1 : levelCfg.maxSteps;
+      if (comboLength >= targetSteps) {
         setTimeout(() => {
           if (!cancelRef.current) {
             finishSession(newMaxCombo);
@@ -233,17 +248,20 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
         if (!cancelRef.current) {
           setComboLength(nextCombo);
           setMistakesThisRound(0);
-          startRound(nextCombo);
+          startRound(nextCombo, levelCfg.padsActive);
         }
       }, 1300);
     }
   };
 
-  // Reset option while playing
-  const resetGame = () => {
+  // Reset or change level
+  const resetGame = (lvl = level) => {
     cancelRef.current = true;
+    const safeLvl = Math.max(1, Math.min(lvl, SEQUENCE_LEVEL_CONFIG.length));
+    setLevel(safeLvl);
+    const cfg = SEQUENCE_LEVEL_CONFIG[safeLvl - 1];
     startTimeRef.current = Date.now();
-    setComboLength(3);
+    setComboLength(cfg.initSteps);
     setCombinationsReached(0);
     setPlayerSeq([]);
     setTotalAttempts(0);
@@ -253,7 +271,7 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
     setSuccessAnimation(false);
     setTimeout(() => {
       cancelRef.current = false;
-      startRound(3);
+      startRound(cfg.initSteps, cfg.padsActive);
     }, 200);
   };
 
@@ -262,8 +280,10 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
       <GameResultScreen
         result={result}
         customEmoji={<Trophy className="w-12 h-12 text-amber-500" />}
-        currentLevel={result.combinationsReached || comboLength}
-        onPlayAgain={resetGame}
+        currentLevel={level}
+        maxLevel={SEQUENCE_LEVEL_CONFIG.length}
+        onNextLevel={() => resetGame(level + 1)}
+        onPlayAgain={() => resetGame(level)}
         onBack={onBack}
       />
     );
@@ -275,14 +295,16 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
         title="Sequence Recall"
         subtitle={
           phase === 'watch' 
-            ? 'Watch the lights light up in order...' 
+            ? `${levelCfg.label} — Watch pattern...` 
             : `Now tap the pattern (${playerSeq.length}/${sequence.length})`
         }
+        level={level}
+        maxLevel={SEQUENCE_LEVEL_CONFIG.length}
         customBadge={
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-purple-100 text-purple-900 text-xs font-extrabold border border-purple-200 shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>Combination: {comboLength} Steps</span>
+              <span>{comboLength} Steps</span>
             </span>
             {combinationsReached > 0 && (
               <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold border border-emerald-200">
@@ -293,7 +315,7 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
           </div>
         }
         onBack={onBack}
-        onReset={resetGame}
+        onReset={() => resetGame(level)}
         accentColor="text-purple-600"
       />
 
@@ -324,9 +346,15 @@ export const SequenceRecallGame: React.FC<SequenceRecallGameProps> = ({ onBack, 
           )}
         </div>
 
-        {/* Fixed 3x3 Grid (All 9 vibrant high-contrast pads) */}
-        <div className="grid grid-cols-3 max-w-[340px] sm:max-w-[420px] gap-3 sm:gap-4.5 w-full place-items-center">
-          {ALL_PADS.map((pad) => (
+        {/* Dynamic Grid: 4 pads (2x2), 6 pads (3x2), or 9 pads (3x3) */}
+        <div
+          className={`grid gap-3 sm:gap-4.5 w-full place-items-center ${
+            levelCfg.padsActive <= 4
+              ? 'grid-cols-2 max-w-[240px] sm:max-w-[280px]'
+              : 'grid-cols-3 max-w-[340px] sm:max-w-[420px]'
+          }`}
+        >
+          {ALL_PADS.slice(0, levelCfg.padsActive).map((pad) => (
             <button
               key={pad.id}
               onClick={() => handlePadTap(pad.id)}

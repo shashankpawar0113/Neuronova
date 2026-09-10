@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   Sun, Moon, Heart, Star, Leaf, Bird, Flower2, Cloud,
   Music2, Umbrella, Fish, Sparkles, Mountain, TreePine, Waves, Coffee,
+  Flame, Snowflake,
 } from 'lucide-react';
 import { GameHeader } from '../components/GameHeader';
 import { GameResultScreen } from '../components/GameResultScreen';
@@ -10,29 +11,34 @@ import { persistGameResult } from '../services/gamePersistence';
 
 // ---------- Card data ----------
 const ALL_ICONS = [
-  { id: 'sun', Icon: Sun, label: 'Sun', color: 'text-gold-600' },
-  { id: 'moon', Icon: Moon, label: 'Moon', color: 'text-river-500' },
-  { id: 'heart', Icon: Heart, label: 'Heart', color: 'text-terracotta-500' },
-  { id: 'star', Icon: Star, label: 'Star', color: 'text-gold-500' },
-  { id: 'leaf', Icon: Leaf, label: 'Leaf', color: 'text-forest-600' },
-  { id: 'bird', Icon: Bird, label: 'Bird', color: 'text-river-600' },
-  { id: 'flower', Icon: Flower2, label: 'Flower', color: 'text-muga-500' },
-  { id: 'cloud', Icon: Cloud, label: 'Cloud', color: 'text-river-400' },
-  { id: 'music', Icon: Music2, label: 'Music', color: 'text-purple-600' },
-  { id: 'umbrella', Icon: Umbrella, label: 'Umbrella', color: 'text-terracotta-600' },
-  { id: 'fish', Icon: Fish, label: 'Fish', color: 'text-river-700' },
-  { id: 'sparkles', Icon: Sparkles, label: 'Sparkle', color: 'text-gold-500' },
-  { id: 'mountain', Icon: Mountain, label: 'Mountain', color: 'text-forest-700' },
-  { id: 'tree', Icon: TreePine, label: 'Tree', color: 'text-forest-500' },
-  { id: 'waves', Icon: Waves, label: 'Waves', color: 'text-river-500' },
-  { id: 'coffee', Icon: Coffee, label: 'Coffee', color: 'text-muga-700' },
+  { id: 'sun',       Icon: Sun,       label: 'Sun',      color: 'text-gold-600' },
+  { id: 'moon',      Icon: Moon,      label: 'Moon',     color: 'text-river-500' },
+  { id: 'heart',     Icon: Heart,     label: 'Heart',    color: 'text-terracotta-500' },
+  { id: 'star',      Icon: Star,      label: 'Star',     color: 'text-gold-500' },
+  { id: 'leaf',      Icon: Leaf,      label: 'Leaf',     color: 'text-forest-600' },
+  { id: 'bird',      Icon: Bird,      label: 'Bird',     color: 'text-river-600' },
+  { id: 'flower',    Icon: Flower2,   label: 'Flower',   color: 'text-muga-500' },
+  { id: 'cloud',     Icon: Cloud,     label: 'Cloud',    color: 'text-river-400' },
+  { id: 'music',     Icon: Music2,    label: 'Music',    color: 'text-purple-600' },
+  { id: 'umbrella',  Icon: Umbrella,  label: 'Umbrella', color: 'text-terracotta-600' },
+  { id: 'fish',      Icon: Fish,      label: 'Fish',     color: 'text-river-700' },
+  { id: 'sparkles',  Icon: Sparkles,  label: 'Sparkle',  color: 'text-gold-500' },
+  { id: 'mountain',  Icon: Mountain,  label: 'Mountain', color: 'text-forest-700' },
+  { id: 'tree',      Icon: TreePine,  label: 'Tree',     color: 'text-forest-500' },
+  { id: 'waves',     Icon: Waves,     label: 'Waves',    color: 'text-river-500' },
+  { id: 'coffee',    Icon: Coffee,    label: 'Coffee',   color: 'text-muga-700' },
+  { id: 'flame',     Icon: Flame,     label: 'Flame',    color: 'text-orange-600' },
+  { id: 'snowflake', Icon: Snowflake, label: 'Snow',     color: 'text-sky-400' },
 ];
 
 const LEVEL_CONFIG = [
-  { pairs: 3, label: '3 pairs — gentle start' },
-  { pairs: 4, label: '4 pairs — a little more' },
-  { pairs: 5, label: '5 pairs — keeping sharp' },
-  { pairs: 6, label: '6 pairs — wonderful challenge' },
+  { pairs: 3, label: 'Level 1 — 3 pairs, gentle start' },
+  { pairs: 4, label: 'Level 2 — 4 pairs, warming up' },
+  { pairs: 5, label: 'Level 3 — 5 pairs, keeping sharp' },
+  { pairs: 6, label: 'Level 4 — 6 pairs, good challenge' },
+  { pairs: 7, label: 'Level 5 — 7 pairs, great effort' },
+  { pairs: 8, label: 'Level 6 — 8 pairs, impressive!' },
+  { pairs: 9, label: 'Level 7 — 9 pairs, champion!' },
 ];
 
 interface Card {
