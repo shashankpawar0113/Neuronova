@@ -5,14 +5,15 @@ import { GameResultScreen } from '../components/GameResultScreen';
 import { GameResult } from '../types';
 import { persistGameResult } from '../services/gamePersistence';
 
-// 6 progressive difficulty levels for Attention Game
+// 7 progressive difficulty levels for Attention Game (max 3x3 grid)
 const LEVEL_CONFIGS = [
-  { label: 'Level 1 — very clear difference',   gridSize: 4,  roundsToWin: 5,  hueDelta: [90, 120], sVariance: 0,  lVariance: 0   },
-  { label: 'Level 2 — clear difference',         gridSize: 6,  roundsToWin: 6,  hueDelta: [55, 75],  sVariance: 0,  lVariance: 0   },
-  { label: 'Level 3 — moderate contrast',        gridSize: 9,  roundsToWin: 7,  hueDelta: [28, 45],  sVariance: 5,  lVariance: 0   },
-  { label: 'Level 4 — subtle difference',        gridSize: 12, roundsToWin: 8,  hueDelta: [18, 28],  sVariance: 8,  lVariance: 5   },
-  { label: 'Level 5 — very subtle difference',   gridSize: 16, roundsToWin: 9,  hueDelta: [12, 18],  sVariance: 10, lVariance: 7   },
-  { label: 'Level 6 — expert — challenging contrast', gridSize: 16, roundsToWin: 10, hueDelta: [9, 15], sVariance: 12, lVariance: 8 },
+  { label: 'Level 1 — very clear difference',   gridSize: 4, roundsToWin: 5, hueDelta: [80, 110], sVariance: 0,  lVariance: 0 },
+  { label: 'Level 2 — clear difference',         gridSize: 9, roundsToWin: 6, hueDelta: [50, 70],  sVariance: 0,  lVariance: 0 },
+  { label: 'Level 3 — moderate contrast',        gridSize: 9, roundsToWin: 6, hueDelta: [32, 45],  sVariance: 4,  lVariance: 0 },
+  { label: 'Level 4 — subtle difference',        gridSize: 9, roundsToWin: 7, hueDelta: [22, 30],  sVariance: 6,  lVariance: 3 },
+  { label: 'Level 5 — tricky contrast',          gridSize: 9, roundsToWin: 7, hueDelta: [15, 21],  sVariance: 8,  lVariance: 5 },
+  { label: 'Level 6 — expert difference',        gridSize: 9, roundsToWin: 8, hueDelta: [11, 15],  sVariance: 10, lVariance: 6 },
+  { label: 'Level 7 — master challenge',         gridSize: 9, roundsToWin: 8, hueDelta: [8,  12],  sVariance: 12, lVariance: 7 },
 ];
 
 type Circle = { id: number; hsl: string; isOdd: boolean };
@@ -127,16 +128,8 @@ export const AttentionGame: React.FC<AttentionGameProps> = ({ onBack, onGameComp
     );
   }
 
-  const cols =
-    cfg.gridSize <= 4  ? 'grid-cols-2' :
-    cfg.gridSize <= 6  ? 'grid-cols-3' :
-    cfg.gridSize <= 9  ? 'grid-cols-3' :
-    cfg.gridSize <= 12 ? 'grid-cols-4' : 'grid-cols-4';
-
-  const circleSize =
-    cfg.gridSize <= 6  ? 'w-20 h-20 sm:w-24 sm:h-24' :
-    cfg.gridSize <= 9  ? 'w-16 h-16 sm:w-20 sm:h-20' :
-    cfg.gridSize <= 12 ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-12 h-12 sm:w-14 sm:h-14';
+  const cols = cfg.gridSize <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+  const circleSize = cfg.gridSize <= 4 ? 'w-24 h-24 sm:w-28 sm:h-28' : 'w-20 h-20 sm:w-24 sm:h-24';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] flex flex-col">
