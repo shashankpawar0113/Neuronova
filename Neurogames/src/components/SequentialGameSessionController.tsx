@@ -3,7 +3,7 @@ import { GameType, GameResult } from '../types';
 import { MemoryMatchGame } from '../games/MemoryMatchGame';
 import { AttentionGame } from '../games/AttentionGame';
 import { SequenceRecallGame } from '../games/SequenceRecallGame';
-import { Trophy, Mic, Home, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Trophy, Mic, Home, Sparkles, CheckCircle2, Volume2 } from 'lucide-react';
 import { persistGameResult } from '../services/gamePersistence';
 import { HOMEPAGE_URL } from '../config/urls';
 
@@ -40,6 +40,7 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
   const [countdown, setCountdown] = useState(3);
   const [isSessionComplete, setIsSessionComplete] = useState(false);
   const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
   const [latestTranscript, setLatestTranscript] = useState<string>('');
 
@@ -50,6 +51,10 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
   const isSpeakingRef = useRef(false);
   const isActionInProgressRef = useRef(false);
   const isMountedRef = useRef(true);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechSafetyTimeoutRef = useRef<any>(null);
+  const speechFinishedTimestampRef = useRef<number>(0);
+  const restartTimerRef = useRef<any>(null);
 
   const language = initialLang || (localStorage.getItem('neuronova_voice_lang') as any) || 'hinglish';
 
@@ -64,31 +69,70 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
 
   const speak = (text: string, onEnd?: () => void) => {
     try {
+      if (speechSafetyTimeoutRef.current) {
+        clearTimeout(speechSafetyTimeoutRef.current);
+        speechSafetyTimeoutRef.current = null;
+      }
+
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         isSpeakingRef.current = true;
+        setIsAssistantSpeaking(true);
+
         const utter = new SpeechSynthesisUtterance(text);
+        currentUtteranceRef.current = utter;
         utter.rate = 0.95;
         utter.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
-        utter.onend = () => {
+
+        const handleDone = () => {
+          if (speechSafetyTimeoutRef.current) {
+            clearTimeout(speechSafetyTimeoutRef.current);
+            speechSafetyTimeoutRef.current = null;
+          }
+          currentUtteranceRef.current = null;
           isSpeakingRef.current = false;
-          if (onEnd) onEnd();
+          if (isMountedRef.current) {
+            setIsAssistantSpeaking(false);
+          }
+          speechFinishedTimestampRef.current = Date.now();
+
+          // ⚠️ Critical Acoustic Silence Buffer:
+          // Wait 800ms after speech ends before turning on mic or triggering next step.
+          // This prevents laptop speaker audio bleed / room reverberation from self-triggering keywords!
+          setTimeout(() => {
+            if (isMountedRef.current && onEnd) {
+              onEnd();
+            }
+          }, 800);
         };
-        utter.onerror = () => {
-          isSpeakingRef.current = false;
-          if (onEnd) onEnd();
-        };
+
+        utter.onend = handleDone;
+        utter.onerror = handleDone;
+
+        // Safety watchdog: Only fallback after 8 seconds if browser speech synthesis hangs,
+        // NEVER interrupt mid-speech at 1.4s.
+        speechSafetyTimeoutRef.current = setTimeout(() => {
+          if (isSpeakingRef.current) {
+            console.warn('[SpeechSynthesis Watchdog]: Timed out after 8s, releasing');
+            try {
+              window.speechSynthesis.cancel();
+            } catch (_) {}
+            handleDone();
+          }
+        }, 8000);
+
         window.speechSynthesis.speak(utter);
       } else {
+        speechFinishedTimestampRef.current = Date.now();
         if (onEnd) onEnd();
       }
     } catch (_) {
       isSpeakingRef.current = false;
+      setIsAssistantSpeaking(false);
+      speechFinishedTimestampRef.current = Date.now();
       if (onEnd) onEnd();
     }
   };
-
-  const restartTimerRef = useRef<any>(null);
 
   // Stop any active SpeechRecognition instance cleanly
   const stopRecognition = () => {
@@ -125,11 +169,12 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       }
     } catch (_) {}
     isSpeakingRef.current = false;
+    setIsAssistantSpeaking(false);
 
-    setVoiceFeedback('✓ Navigating to Homepage...');
+    setVoiceFeedback('✓ Going to Homepage...');
     setTimeout(() => {
       window.location.href = HOMEPAGE_URL || '/';
-    }, 250);
+    }, 800);
   };
 
   const handleStartNextLevel = () => {
@@ -145,6 +190,7 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       }
     } catch (_) {}
     isSpeakingRef.current = false;
+    setIsAssistantSpeaking(false);
 
     const maxSessionLevel = 8;
     const isAtMax = sessionLevelRef.current >= maxSessionLevel;
@@ -160,12 +206,34 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       setVoiceFeedback(null);
       setLatestTranscript('');
       isActionInProgressRef.current = false;
-    }, 200);
+    }, 800);
   };
 
   // Start listening specifically for the post-session choice (Next Level vs Homepage)
   const startVoiceChoiceListening = () => {
-    if (!isMountedRef.current || !isSessionCompleteRef.current) return;
+    if (!isMountedRef.current || !isSessionCompleteRef.current || isActionInProgressRef.current) return;
+
+    // 1. Guard against microphone starting while assistant is speaking
+    if (isSpeakingRef.current || ('speechSynthesis' in window && window.speechSynthesis.speaking)) {
+      console.log('[Voice Choice]: Assistant is still speaking, waiting before listening...');
+      setTimeout(() => {
+        if (isMountedRef.current && isSessionCompleteRef.current && !isActionInProgressRef.current) {
+          startVoiceChoiceListening();
+        }
+      }, 500);
+      return;
+    }
+
+    // 2. Guard against acoustic echo/reverberation from speakers
+    const elapsedSinceSpeech = Date.now() - speechFinishedTimestampRef.current;
+    if (elapsedSinceSpeech < 800) {
+      setTimeout(() => {
+        if (isMountedRef.current && isSessionCompleteRef.current && !isActionInProgressRef.current) {
+          startVoiceChoiceListening();
+        }
+      }, 800 - elapsedSinceSpeech);
+      return;
+    }
 
     stopRecognition();
 
@@ -186,51 +254,85 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       };
 
       recognition.onresult = (event: any) => {
-        let chunk = '';
+        // Double check: if TTS is somehow active or in echo window, discard immediately
+        if (isSpeakingRef.current || ('speechSynthesis' in window && window.speechSynthesis.speaking)) {
+          return;
+        }
+        if (Date.now() - speechFinishedTimestampRef.current < 700) {
+          return;
+        }
+
+        let finalTranscript = '';
         const candidates: string[] = [];
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const res = event.results[i];
-          chunk += ' ' + (res[0]?.transcript || '');
+          // ⚠️ ONLY process FINAL results — interim results cause false triggers
+          if (!res.isFinal) continue;
+          finalTranscript += ' ' + (res[0]?.transcript || '');
           for (let a = 0; a < res.length; a++) {
             const t = (res[a]?.transcript || '').toLowerCase().trim();
-            if (t) candidates.push(t);
+            if (t && t.length >= 2) candidates.push(t);
           }
         }
-        if (chunk.trim()) {
-          candidates.push(chunk.toLowerCase().trim());
+
+        if (finalTranscript.trim()) {
+          candidates.push(finalTranscript.toLowerCase().trim());
         }
 
-        const primaryText = chunk.toLowerCase().trim() || candidates[0] || '';
-        if (!primaryText && candidates.length === 0) return;
+        const primaryText = finalTranscript.toLowerCase().trim() || candidates[0] || '';
+        // Require at least 2 characters to avoid noise matches
+        if (!primaryText || primaryText.length < 2 || candidates.length === 0) return;
 
         console.log('[Post-Game Voice Choice Candidates]', candidates);
         if (isMountedRef.current) {
           setLatestTranscript(primaryText);
         }
 
+        // Specific, intentional commands only
         const nextKeywords = [
-          'next', 'level', 'agla', 'aage', 'play', 'start', 'continue',
-          'aur', 'dusra', 'tisra', 'two', 'three', 'second', 'third',
-          'khel', 'neck', 'net', 'text level', 'max level', 'nest',
-          'live', 'love', 'leval', 'devil', 'table',
-          'अगला', 'लेवल', 'आगे', 'दूसरा', 'तीसरा', 'शुरू', 'खेलो'
+          'next level', 'next', 'level', 'play next', 'continue',
+          'agla level', 'agla', 'aage', 'dusra level', 'aur khelo', 'khelo',
+          'अगला लेवल', 'अगला', 'आगे', 'खेलो', 'शुरू'
         ];
 
         const homeKeywords = [
-          'home', 'homepage', 'ghar', 'wapas', 'exit', 'back', 'quit',
-          'bahar', 'barmer', 'baad', 'ruko', 'band', 'main', 'menu',
-          'baba', 'dashboard', 'leave', 'stop', 'done',
-          'होमपेज', 'घर', 'वापस', 'बाहर', 'बंद', 'मुख्य'
+          'homepage', 'home page', 'go home', 'go to home', 'go to homepage',
+          'return home', 'back to home', 'ghar jao', 'wapas jao', 'exit', 'dashboard',
+          'होमपेज', 'होम पेज', 'घर जाओ', 'वापस जाओ'
         ];
 
-        const matchedNext = candidates.some((c) =>
-          nextKeywords.some((k) => c.includes(k))
+        // Matching logic:
+        // Word boundary / exact match to avoid substrings like 'phone' or 'hum' or 'foam' triggering 'home'
+        const matchesKeywordList = (candList: string[], keywords: string[], allowExactSingles: string[]) => {
+          return candList.some((cand) => {
+            const c = cand.toLowerCase().trim();
+            if (allowExactSingles.includes(c)) return true;
+            return keywords.some((kw) => {
+              if (kw.includes(' ') && c.includes(kw)) return true;
+              const words = c.split(/[\s,.-]+/);
+              return words.includes(kw);
+            });
+          });
+        };
+
+        const matchedNext = matchesKeywordList(
+          candidates,
+          nextKeywords,
+          ['next', 'level', 'agla', 'play', 'khel']
         );
 
-        const matchedHome = candidates.some((c) =>
-          homeKeywords.some((k) => c.includes(k))
+        const matchedHome = matchesKeywordList(
+          candidates,
+          homeKeywords,
+          ['homepage', 'home', 'ghar', 'wapas', 'exit', 'dashboard']
         );
+
+        // If both matched or ambiguous, do NOT trigger
+        if (matchedNext && matchedHome) {
+          console.log('[Voice Choice]: Ambiguous match (both next & home), ignoring');
+          return;
+        }
 
         if (matchedNext) {
           handleStartNextLevel();
@@ -281,6 +383,9 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       if (transitionTimerRef.current) {
         clearInterval(transitionTimerRef.current);
       }
+      if (speechSafetyTimeoutRef.current) {
+        clearTimeout(speechSafetyTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -329,26 +434,19 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
       // Session Complete for this Level!
       setIsSessionComplete(true);
 
-      // Voice Assistant prompt - ONLY ask the two things directly!
+      // Natural prompt that guides the user clearly and doesn't end with bare trigger words
       const prompt =
         language === 'hi'
-          ? 'अगला लेवल या होमपेज?'
+          ? 'शानदार खेल! अगला स्तर खेलने के लिए "अगला लेवल" बोलें, या बाहर जाने के लिए "होमपेज" बोलें।'
           : language === 'hinglish'
-          ? 'Next level ya homepage?'
-          : 'Next level, or homepage?';
+          ? 'Great job! Agla level khelne ke liye "Next Level" bolein, ya bahar aane ke liye "Homepage" bolein.'
+          : 'Great job! Say "Next Level" to continue playing, or say "Homepage" to return home.';
 
       // Do NOT run mic while assistant is speaking.
-      // As voice assistant finishes its speech, take voice input for choice!
+      // As voice assistant finishes its speech and silence buffer elapses, start listening!
       speak(prompt, () => {
         startVoiceChoiceListening();
       });
-
-      // Fallback in case browser speech synthesis onend callback is delayed
-      setTimeout(() => {
-        if (isSessionCompleteRef.current && !isActionInProgressRef.current) {
-          startVoiceChoiceListening();
-        }
-      }, 1400);
     }
   };
 
@@ -445,31 +543,50 @@ export const SequentialGameSessionController: React.FC<SequentialGameSessionCont
                 onClick={() => startVoiceChoiceListening()}
                 title="Tap to start mic"
                 className={`w-9 h-9 rounded-xl text-white flex items-center justify-center shrink-0 shadow-sm transition-all active:scale-95 cursor-pointer ${
-                  isVoiceListening
+                  isAssistantSpeaking
                     ? 'bg-amber-500 animate-pulse ring-2 ring-amber-400/40'
+                    : isVoiceListening
+                    ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/40'
                     : 'bg-slate-400 hover:bg-amber-500'
                 }`}
               >
-                <Mic className="w-4 h-4" />
+                {isAssistantSpeaking ? <Volume2 className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900">
-                    Voice Assistant Active
+                    Voice Assistant
                   </span>
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-extrabold ${
-                      isVoiceListening ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      isAssistantSpeaking
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : isVoiceListening
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-slate-100 text-slate-700'
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isVoiceListening ? 'bg-emerald-500 animate-ping' : 'bg-amber-500'}`} />
-                    {isVoiceListening ? 'Always Listening...' : 'Tap Mic to Start'}
+                    {isAssistantSpeaking ? (
+                      <>
+                        <Volume2 className="w-2.5 h-2.5 text-amber-600 animate-pulse" />
+                        Speaking...
+                      </>
+                    ) : isVoiceListening ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                        Listening for Choice...
+                      </>
+                    ) : (
+                      'Tap Mic to Start'
+                    )}
                   </span>
                 </div>
                 <p className="text-xs font-bold text-slate-800 mt-0.5">
-                  {language === 'hi'
-                    ? `बोलिए: "अगला लेवल" या "होमपेज"`
-                    : `Speak: Say "Next Level" or "Homepage"`}
+                  {isAssistantSpeaking
+                    ? (language === 'hi' ? 'सहायक बोल रहा है...' : 'Assistant is speaking...')
+                    : (language === 'hi'
+                        ? `बोलिए: "अगला लेवल" या "होमपेज"`
+                        : `Speak: Say "Next Level" or "Homepage"`)}
                 </p>
               </div>
             </div>
