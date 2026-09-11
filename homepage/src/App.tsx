@@ -103,11 +103,35 @@ const PatientHomeContent: React.FC<{ session: UserSession }> = ({ session }) => 
   const userName = session.name;
   const userId = session.userId;
 
-  // Display preferences (fontSize and highContrast only)
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    fontSize: 'large', // Senior-friendly default
-    highContrast: false,
+  // Display preferences (fontSize and highContrast only, persisted in localStorage)
+  const [preferences, setPreferences] = useState<UserPreferences>(() => {
+    try {
+      const saved = localStorage.getItem('neuronova_display_preferences');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          fontSize: parsed.fontSize || 'large',
+          highContrast: Boolean(parsed.highContrast),
+        };
+      }
+    } catch (_) {}
+    return {
+      fontSize: 'large', // Senior-friendly default
+      highContrast: false,
+    };
   });
+
+  // Sync high-contrast class to root documentElement
+  useEffect(() => {
+    if (preferences.highContrast) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+    return () => {
+      document.documentElement.classList.remove('high-contrast');
+    };
+  }, [preferences.highContrast]);
 
   const [routineSchedule, setRoutineSchedule] = useState<RoutineItem[]>(INITIAL_ROUTINE_SCHEDULE);
 
@@ -248,7 +272,13 @@ const PatientHomeContent: React.FC<{ session: UserSession }> = ({ session }) => 
   } | null>(null);
 
   const handleUpdatePreferences = (updated: Partial<UserPreferences>) => {
-    setPreferences(prev => ({ ...prev, ...updated }));
+    setPreferences(prev => {
+      const next = { ...prev, ...updated };
+      try {
+        localStorage.setItem('neuronova_display_preferences', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
   };
 
   const handleSelectCard = (cardId: string, title: string, description: string) => {
@@ -293,7 +323,7 @@ const PatientHomeContent: React.FC<{ session: UserSession }> = ({ session }) => 
         className={`min-h-screen w-full relative text-[#1A202C] flex flex-col justify-between font-brand-body transition-opacity duration-700 ease-out ${
           isMounted ? 'opacity-100' : 'opacity-0'
         } ${getFontSizeClass()} ${
-          preferences.highContrast ? 'contrast-125 font-medium' : ''
+          preferences.highContrast ? 'high-contrast' : ''
         }`}
       >
         {/* Living Organic Unblur Background: White blur with dynamic stretching unblur droplet following cursor */}

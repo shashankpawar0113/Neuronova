@@ -213,15 +213,18 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={() => onUpdatePreferences({ highContrast: !preferences.highContrast })}
-              className={`w-14 h-8 rounded-full transition-colors relative focus-visible:ring-4 focus-visible:ring-forest-400 ${
-                preferences.highContrast ? 'bg-forest-600' : 'bg-cream-300'
+              className={`relative inline-flex items-center w-14 h-8 p-1 rounded-full cursor-pointer transition-colors duration-200 focus-visible:ring-4 focus-visible:ring-forest-400 border-2 ${
+                preferences.highContrast ? 'bg-forest-600 border-forest-700' : 'bg-cream-300 border-cream-400'
               }`}
               aria-label="Toggle high contrast"
+              role="switch"
+              aria-checked={preferences.highContrast}
             >
               <span
-                className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform ${
-                  preferences.highContrast ? 'right-1' : 'left-1'
+                className={`w-5 h-5 bg-white rounded-full shadow-md border border-slate-200 transform transition-transform duration-200 pointer-events-none ${
+                  preferences.highContrast ? 'translate-x-6' : 'translate-x-0'
                 }`}
               />
             </button>

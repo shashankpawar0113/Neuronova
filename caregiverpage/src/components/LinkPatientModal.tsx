@@ -131,7 +131,7 @@ export const LinkPatientModal: React.FC<LinkPatientModalProps> = ({
                 required
               />
               <p className="mt-1.5 text-xs text-[#1A202C]/65 font-brand-body">
-                Found on the patient's home screen under <span className="font-semibold text-meadow-700">Display & Comfort Settings</span>.
+                Found on the elder's home screen by triple-tapping the <span className="font-semibold text-meadow-700">Clock badge</span> &rarr; <span className="font-semibold text-meadow-700">Display Settings</span>.
               </p>
             </div>
 

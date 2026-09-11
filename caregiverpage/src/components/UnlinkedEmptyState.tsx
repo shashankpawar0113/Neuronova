@@ -1,5 +1,5 @@
 import React from 'react';
-import { HeartHandshake, KeyRound, ShieldCheck, Sparkles, Smartphone, Settings, ArrowRight } from 'lucide-react';
+import { HeartHandshake, KeyRound, ShieldCheck, Sparkles, Smartphone, Clock, ArrowRight } from 'lucide-react';
 
 interface UnlinkedEmptyStateProps {
   onOpenLinkModal: () => void;
@@ -96,13 +96,13 @@ export const UnlinkedEmptyState: React.FC<UnlinkedEmptyStateProps> = ({
                 <span className="w-7 h-7 rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
                   2
                 </span>
-                <Settings className="w-4 h-4 text-sky-700" />
+                <Clock className="w-4 h-4 text-sky-700" />
               </div>
               <h4 className="text-sm font-bold text-[#1A202C] font-brand-heading mb-1">
-                Tap Settings Gear
+                Tap Clock 3 Times
               </h4>
               <p className="text-xs text-[#1A202C]/70 font-brand-body leading-relaxed">
-                Open Display & Comfort settings to find their 8-character connection code.
+                Triple-tap the time badge in the top right, then select Display Settings to find their connection code.
               </p>
             </div>
           </div>

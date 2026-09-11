@@ -103,5 +103,182 @@
   }
 }
 
+/* ─── High Contrast Accessibility Mode ────────────────────────────────────────
+   Enhances borders, deepens dark ink, eliminates distracting translucent
+   gradients, and guarantees maximum WCAG AAA readability for senior elders.
+─────────────────────────────────────────────────────────────────────────────── */
 
+html.high-contrast,
+.high-contrast {
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
 
+/* Maintain living background & ensure interactive unblur canvas stays 100% active */
+html.high-contrast body,
+.high-contrast {
+  color: #000000 !important;
+}
+
+/* Ensure unblur canvas operates at full fidelity */
+.high-contrast canvas {
+  opacity: 1 !important;
+}
+
+/* 1. SOLID CARD SURFACES (Keep cards crisp and opaque so text is never compromised) */
+.high-contrast header,
+.high-contrast section,
+.high-contrast article,
+.high-contrast footer,
+.high-contrast .bg-white\/80,
+.high-contrast .bg-white\/85,
+.high-contrast .bg-white\/90,
+.high-contrast .bg-white\/95,
+.high-contrast .bg-\[\#FAF7F2\]\/90,
+.high-contrast .bg-\[\#FAF7F2\]\/60,
+.high-contrast .bg-white\/75 {
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 2. ENHANCE BORDERS (Bold, crisp dark boundaries) */
+.high-contrast header,
+.high-contrast section,
+.high-contrast article,
+.high-contrast .rounded-3xl,
+.high-contrast .rounded-2xl {
+  border-color: #0F172A !important;
+  border-width: 2.5px !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12) !important;
+}
+
+.high-contrast .border,
+.high-contrast .border-2,
+.high-contrast [class*="border-\[#E8DFD1\]"],
+.high-contrast [class*="border-cream"],
+.high-contrast [class*="border-slate-"],
+.high-contrast [class*="border-river-"],
+.high-contrast [class*="border-muga-"],
+.high-contrast [class*="border-forest-"],
+.high-contrast [class*="border-terracotta-"] {
+  border-color: #0F172A !important;
+}
+
+/* 3. DEEPEN DARK INK (Pure black & deep slate typography) */
+.high-contrast h1,
+.high-contrast h2,
+.high-contrast h3,
+.high-contrast h4,
+.high-contrast h5,
+.high-contrast h6 {
+  color: #000000 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.high-contrast p,
+.high-contrast span,
+.high-contrast label,
+.high-contrast li {
+  font-weight: 600 !important;
+}
+
+/* Deepen all muted, semi-transparent text */
+.high-contrast [class*="text-[#1A202C]"],
+.high-contrast [class*="text-slate-500"],
+.high-contrast [class*="text-slate-600"],
+.high-contrast [class*="text-slate-700"],
+.high-contrast [class*="text-slate-800"],
+.high-contrast [class*="text-slate-400"] {
+  color: #0F172A !important;
+  opacity: 1 !important;
+}
+
+/* Thematic text colors in high contrast */
+.high-contrast .text-forest-600,
+.high-contrast .text-forest-700,
+.high-contrast .text-forest-800,
+.high-contrast .text-forest-900 {
+  color: #064E3B !important; /* Extra deep forest */
+  font-weight: 800 !important;
+}
+
+.high-contrast .text-river-600,
+.high-contrast .text-river-700,
+.high-contrast .text-river-800,
+.high-contrast .text-river-900 {
+  color: #0C4A6E !important; /* Extra deep river blue */
+  font-weight: 800 !important;
+}
+
+.high-contrast .text-muga-600,
+.high-contrast .text-muga-700,
+.high-contrast .text-muga-800,
+.high-contrast .text-muga-900 {
+  color: #78350F !important; /* Extra deep warm amber */
+  font-weight: 800 !important;
+}
+
+/* Protect white text on colored/dark buttons */
+.high-contrast [class*="text-white"],
+.high-contrast button[class*="bg-forest"] *,
+.high-contrast button[class*="bg-emerald"] *,
+.high-contrast [class*="bg-river-500"] *,
+.high-contrast [class*="bg-forest-600"] * {
+  color: #FFFFFF !important;
+}
+
+/* 4. BUTTONS & INTERACTIVE CONTROLS */
+.high-contrast button {
+  border-width: 2px !important;
+  border-color: #0F172A !important;
+}
+
+/* Primary Action Button (Done / Submit / Confirm) */
+.high-contrast button[class*="bg-forest"],
+.high-contrast button[class*="bg-emerald"] {
+  background-color: #047857 !important;
+  border-color: #022C22 !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 12px rgba(4, 120, 87, 0.3) !important;
+}
+
+/* Secondary / Light Buttons */
+.high-contrast button[class*="bg-cream"],
+.high-contrast button[class*="bg-white"],
+.high-contrast button[class*="bg-slate"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+  border-color: #0F172A !important;
+  font-weight: 700 !important;
+}
+
+/* 5. HERO ACTION CARDS IN HIGH CONTRAST */
+.high-contrast button[class*="border-2"] {
+  border-width: 2.5px !important;
+  border-color: #0F172A !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1) !important;
+}
+
+.high-contrast button[class*="border-2"]:hover {
+  border-color: #000000 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2) !important;
+}
+
+/* Badges / Chips */
+.high-contrast [class*="rounded-full"][class*="border"] {
+  border-width: 2px !important;
+  border-color: #0F172A !important;
+  font-weight: 800 !important;
+}
+
+/* 6. MODALS & POPUPS */
+.high-contrast [role="dialog"],
+.high-contrast .fixed [class*="rounded-3xl"] {
+  border-color: #000000 !important;
+  border-width: 3px !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
+}
