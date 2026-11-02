@@ -1,6 +1,6 @@
 import { performLogout } from '../config/urls';
 import React, { useState, useEffect } from 'react';
-import { X, Type, Check, SunMedium, UserCheck, HeartHandshake, Copy, CheckCheck } from 'lucide-react';
+import { X, Type, Check, SunMedium, UserCheck, HeartHandshake, Copy, CheckCheck , LogOut } from 'lucide-react';
 import { UserPreferences, FontSizePreference } from '../types';
 import { BACKEND_URL } from '../config/urls';
 

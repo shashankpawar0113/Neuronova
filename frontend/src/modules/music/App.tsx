@@ -21,7 +21,7 @@ import {
   Heart, 
   CheckCircle2, 
   RotateCcw 
-} from 'lucide-react';
+, LogOut } from 'lucide-react';
 
 interface UserSession {
   userId: string;
@@ -274,15 +274,6 @@ export const App: React.FC = () => {
             <Heart className="w-3.5 h-3.5 text-forest-600 fill-forest-200" />
             <span>{userName}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => performLogout()}
-            className="px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Sign out of NeuroNova"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
           <button
             type="button"
             onClick={() => performLogout()}

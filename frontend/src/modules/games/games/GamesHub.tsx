@@ -1,8 +1,7 @@
 import React from 'react';
 import {
   Brain, Eye, Music2, Landmark, Sun, HeartHandshake,
-  ArrowRight, Home, Sparkles,
-} from 'lucide-react';
+  ArrowRight, Home, Sparkles, LogOut } from 'lucide-react';
 import { GameType } from '../types';
 import { HOMEPAGE_URL, performLogout } from '../config/urls';
 
