@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SlidersHorizontal, Clock, Calendar, Sparkles, LogOut, Globe } from 'lucide-react';
+import { SlidersHorizontal, Clock, Calendar, Sparkles, LogOut, Globe, Copy, Check, Shield } from 'lucide-react';
 import { AUTHPAGE_URL, BACKEND_URL, performLogout } from '../config/urls';
 import { CelestialGreetingBox } from './CelestialGreetingBox';
 import { useLanguage } from '../context/LanguageContext';
 
 interface GreetingHeaderProps {
   userName: string;
+  userId?: string;
   onOpenSettings: () => void;
   onOpenLanguage?: () => void;
   revealDelay?: number; // ms offset for stagger — set by App.tsx
@@ -19,6 +20,7 @@ interface DailyMotivation {
 
 export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
   userName,
+  userId,
   onOpenSettings,
   onOpenLanguage,
   revealDelay: _revealDelay = 0,
@@ -28,6 +30,26 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
 
   // Secret Triple-Tap Controls Menu (Dementia-safe: hides Settings & Sign Out from patients)
   const [isSecretMenuOpen, setIsSecretMenuOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  useEffect(() => {
+    if (!isSecretMenuOpen || !userId) return;
+    let active = true;
+    const url = userName 
+      ? `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code?name=${encodeURIComponent(userName)}`
+      : `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        if (active && d?.inviteCode) {
+          setInviteCode(d.inviteCode);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [isSecretMenuOpen, userId, userName]);
   const tapCountRef = useRef(0);
   const lastTapTimeRef = useRef(0);
   const secretMenuRef = useRef<HTMLDivElement>(null);
@@ -177,28 +199,93 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
             {/* Secret Menu for Caregiver / Admin Settings & Sign Out */}
             {isSecretMenuOpen && (
               <div 
-                className="absolute right-0 top-full mt-2.5 w-72 bg-white rounded-2xl border-2 border-slate-200/90 shadow-2xl p-2.5 z-50 flex flex-col gap-1.5 ring-1 ring-black/5 overflow-hidden"
+                className="absolute right-0 top-full mt-2.5 w-80 bg-white rounded-2xl border-2 border-slate-200/90 shadow-2xl p-3 z-50 flex flex-col gap-2 ring-1 ring-black/5 overflow-hidden animate-fade-in"
                 style={{ backgroundColor: '#ffffff', opacity: 1 }}
               >
-                <div className="px-2.5 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-forest-700">
+                <div className="px-2 py-1 border-b border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-forest-700 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-forest-600" />
                     {t.systemControls.title}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium">{t.systemControls.caregiverBadge}</span>
+                  <span className="text-[10px] bg-forest-100 text-forest-800 font-bold px-2 py-0.5 rounded-full">
+                    {t.systemControls.caregiverBadge}
+                  </span>
                 </div>
 
-                {/* Settings Option */}
+                {/* Elder NeuroID / Caregiver Connection Code */}
+                <div className="p-3 bg-gradient-to-br from-forest-50/90 to-emerald-50/70 border border-forest-200/90 rounded-xl flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-forest-800 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      Elder NeuroID
+                    </span>
+                    <span className="text-[10px] text-forest-600 font-medium">Caregiver Code</span>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-forest-200/80 shadow-2xs">
+                    <span className="font-mono font-extrabold text-base tracking-widest text-forest-900 select-all">
+                      {inviteCode || (userId ? `NEURO-${userId.slice(-4).toUpperCase()}` : 'Connecting...')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const codeToCopy = inviteCode || (userId ? `NEURO-${userId.slice(-4).toUpperCase()}` : '');
+                        if (codeToCopy && navigator.clipboard) {
+                          navigator.clipboard.writeText(codeToCopy);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-forest-700 hover:text-forest-900 bg-forest-100/80 hover:bg-forest-200/90 px-2 py-1 rounded-md transition-all cursor-pointer"
+                    >
+                      {copiedCode ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-forest-800/80 leading-snug">
+                    Enter this code in your Caregiver Dashboard to link and monitor care in real time.
+                  </p>
+                </div>
+
+                {/* Comfort & Display Settings */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSecretMenuOpen(false);
+                    onOpenSettings();
+                  }}
+                  className="w-full px-3 py-2 rounded-xl hover:bg-forest-50/70 text-slate-700 hover:text-forest-800 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center text-forest-700 shrink-0">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-slate-800">Comfort & Display</span>
+                    <span className="text-[10.5px] text-slate-500 font-normal truncate">Text size, contrast & sound</span>
+                  </div>
+                </button>
+
+                {/* Sign Out Option */}
                 <button
                   type="button"
                   onClick={() => { performLogout(); }}
-                  className="w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-[#1A202C] hover:text-red-700 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
+                  className="w-full px-3 py-2 rounded-xl hover:bg-red-50 text-slate-700 hover:text-red-700 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
                 >
                   <div className="w-8 h-8 rounded-lg bg-red-100/70 flex items-center justify-center text-red-600 shrink-0">
                     <LogOut className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-slate-800">{t.systemControls.signOut}</span>
-                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.signOutSub}</span>
+                    <span className="text-xs font-bold text-slate-800">{t.systemControls.signOut}</span>
+                    <span className="text-[10.5px] text-slate-500 font-normal truncate">{t.systemControls.signOutSub}</span>
                   </div>
                 </button>
               </div>
