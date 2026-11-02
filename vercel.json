@@ -12,7 +12,8 @@
           "format": "url",
           "env": "FRONTEND_URL"
         }
-      ]
+      ],
+      "buildCommand": "npm run build"
     },
     "frontend": {
       "root": "frontend",

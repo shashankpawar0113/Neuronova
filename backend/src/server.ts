@@ -1,3 +1,4 @@
+import os from 'os';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -96,17 +97,24 @@ initSocketServer(httpServer, CORS_ORIGINS);
 // Start background scheduler for missed task alerts
 startMissedTaskScheduler(60000);
 
-// Ensure voice messages audio directory exists
-const audioUploadsDir = path.resolve(process.cwd(), 'data', 'audio', 'voice-messages');
-if (!fs.existsSync(audioUploadsDir)) {
-  fs.mkdirSync(audioUploadsDir, { recursive: true });
-}
+// Ensure directories exist in a serverless-safe way (using /tmp on Vercel)
+const baseStorageDir = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
+  ? path.join(os.tmpdir(), 'data')
+  : path.resolve(process.cwd(), 'data');
 
-// Ensure patient medical reports directory exists
-const reportsUploadsDir = path.resolve(process.cwd(), 'data', 'medical-reports');
-if (!fs.existsSync(reportsUploadsDir)) {
-  fs.mkdirSync(reportsUploadsDir, { recursive: true });
-}
+const audioUploadsDir = path.join(baseStorageDir, 'audio', 'voice-messages');
+try {
+  if (!fs.existsSync(audioUploadsDir)) {
+    fs.mkdirSync(audioUploadsDir, { recursive: true });
+  }
+} catch (_) {}
+
+const reportsUploadsDir = path.join(baseStorageDir, 'medical-reports');
+try {
+  if (!fs.existsSync(reportsUploadsDir)) {
+    fs.mkdirSync(reportsUploadsDir, { recursive: true });
+  }
+} catch (_) {}
 
 // Enable CORS for frontend applications
 app.use(cors({
@@ -122,6 +130,14 @@ app.use(cors({
 
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+
+// Ensure both /api/* and non-prefixed paths match routes correctly on Vercel
+app.use((req, _res, next) => {
+  if (!req.url.startsWith('/api') && req.url !== '/health') {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
 
 
 const getParam = (val: string | string[] | undefined): string =>
