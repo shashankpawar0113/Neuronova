@@ -11,7 +11,7 @@ import { VoiceMessagesModal } from './components/VoiceMessagesModal';
 import { caregiverSocketService } from './services/socketService';
 import { CaregiverSession, LinkedPatient, PatientOverview } from './types';
 import { ShieldAlert, RefreshCw, AlertTriangle, CheckCircle2, Mic, X } from 'lucide-react';
-import { BACKEND_URL, AUTHPAGE_URL } from './config/urls';
+import { BACKEND_URL, AUTHPAGE_URL, performLogout } from './config/urls';
 
 const fetchCaregiverSession = (): CaregiverSession => {
   try {
@@ -272,10 +272,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem('neuronova_auth_session');
-    } catch (_) {}
-    window.location.href = `${AUTHPAGE_URL}/`;
+    performLogout();
   };
 
   const [activeTab, setActiveTab] = useState('analytics');

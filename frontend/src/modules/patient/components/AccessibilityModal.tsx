@@ -1,3 +1,4 @@
+import { performLogout } from '../config/urls';
 import React, { useState, useEffect } from 'react';
 import { X, Type, Check, SunMedium, UserCheck, HeartHandshake, Copy, CheckCheck } from 'lucide-react';
 import { UserPreferences, FontSizePreference } from '../types';
@@ -238,6 +239,14 @@ export const AccessibilityModal: React.FC<AccessibilityModalProps> = ({
             className="w-full min-h-[56px] py-3.5 rounded-2xl bg-forest-600 hover:bg-forest-700 text-white font-extrabold text-lg shadow-warm-md transition-colors"
           >
             Apply & Return Home
+          </button>
+          <button
+            type="button"
+            onClick={() => performLogout()}
+            className="w-full mt-3 min-h-[48px] py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <LogOut className="w-5 h-5" />
+            <span>Sign Out of Patient Session</span>
           </button>
         </div>
 

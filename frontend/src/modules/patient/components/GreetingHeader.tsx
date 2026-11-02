@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SlidersHorizontal, Clock, Calendar, Sparkles, LogOut, Globe } from 'lucide-react';
-import { AUTHPAGE_URL, BACKEND_URL } from '../config/urls';
+import { AUTHPAGE_URL, BACKEND_URL, performLogout } from '../config/urls';
 import { CelestialGreetingBox } from './CelestialGreetingBox';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -67,21 +67,7 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
   }, [userName]);
 
   const handleTimeBoxTap = () => {
-    const now = Date.now();
-    if (now - lastTapTimeRef.current < 650) {
-      tapCountRef.current += 1;
-    } else {
-      tapCountRef.current = 1;
-    }
-    lastTapTimeRef.current = now;
-
-    if (tapCountRef.current >= 3) {
-      tapCountRef.current = 0;
-      setIsSecretMenuOpen(prev => !prev);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate([40, 50, 40]);
-      }
-    }
+    setIsSecretMenuOpen((prev) => !prev);
   };
 
   // Close secret menu when clicking outside
@@ -204,53 +190,7 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
                 {/* Settings Option */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsSecretMenuOpen(false);
-                    onOpenSettings();
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl hover:bg-forest-50 text-[#1A202C] hover:text-forest-900 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-forest-100 flex items-center justify-center text-forest-700 shrink-0">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-slate-800">{t.systemControls.displaySettings}</span>
-                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.accessibilitySub}</span>
-                  </div>
-                </button>
-
-                {/* Voice & App Language Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSecretMenuOpen(false);
-                    if (onOpenLanguage) {
-                      onOpenLanguage();
-                    } else {
-                      window.dispatchEvent(new CustomEvent('neuronova:open-language-modal'));
-                    }
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl hover:bg-amber-50 text-[#1A202C] hover:text-amber-900 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
-                    <Globe className="w-4 h-4" />
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-bold text-slate-800">{t.systemControls.languageOption}</span>
-                    <span className="text-[11px] text-slate-500 font-normal truncate">{t.systemControls.languageSub}</span>
-                  </div>
-                </button>
-
-                {/* Sign Out Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      localStorage.clear();
-                      sessionStorage.clear();
-                    } catch (_) {}
-                    window.location.href = `${AUTHPAGE_URL}/`;
-                  }}
+                  onClick={() => { performLogout(); }}
                   className="w-full px-3 py-2.5 rounded-xl hover:bg-red-50 text-[#1A202C] hover:text-red-700 flex items-center gap-3 text-left text-sm font-semibold group cursor-pointer transition-colors"
                 >
                   <div className="w-8 h-8 rounded-lg bg-red-100/70 flex items-center justify-center text-red-600 shrink-0">

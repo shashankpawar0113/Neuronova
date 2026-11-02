@@ -4,7 +4,7 @@ import { PatientLookupModal } from './components/PatientLookupModal';
 import { RaiseConcernModal } from './components/RaiseConcernModal';
 import { PatientClinicalReportView } from './components/PatientClinicalReportView';
 import { HealthWorkerSession, AuthorizedPatient, PatientClinicalReport } from './types';
-import { BACKEND_URL, AUTHPAGE_URL } from './config/urls';
+import { BACKEND_URL, AUTHPAGE_URL, performLogout } from './config/urls';
 import { RefreshCw, Search, ShieldCheck, UserCheck, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { io } from 'socket.io-client';
 
@@ -178,10 +178,7 @@ export const App: React.FC = () => {
   }, [session.userId, selectedPatientId]);
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem('neuronova_hw_session');
-    } catch (_) {}
-    window.location.href = `${AUTHPAGE_URL}/`;
+    performLogout();
   };
 
   return (
