@@ -1761,6 +1761,156 @@ export function getPatientConcerns(patientId: string): any[] {
   return (stmt.all(patientId) as any[]) || [];
 }
 
+// ── Medical Reports Vault Service ──────────────────────────────────────────
+
+export interface MedicalReportRecord {
+  id: string;
+  patientId: string;
+  caregiverId: string;
+  title: string;
+  category: string;
+  fileName: string;
+  storedFilename: string;
+  fileType: string;
+  fileSize: number;
+  reportDate: string;
+  doctorName?: string;
+  hospitalClinic?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export function saveMedicalReport(report: {
+  id?: string;
+  patientId: string;
+  caregiverId: string;
+  title: string;
+  category?: string;
+  fileName: string;
+  storedFilename: string;
+  fileType: string;
+  fileSize: number;
+  reportDate?: string;
+  doctorName?: string;
+  hospitalClinic?: string;
+  notes?: string;
+}): MedicalReportRecord {
+  const id = report.id || `med_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const category = report.category || 'other';
+  const reportDate = report.reportDate || new Date().toISOString().split('T')[0];
+  const doctorName = report.doctorName || null;
+  const hospitalClinic = report.hospitalClinic || null;
+  const notes = report.notes || null;
+
+  const stmt = db.prepare(`
+    INSERT INTO medical_reports (
+      id, patient_id, caregiver_id, title, category,
+      file_name, stored_filename, file_type, file_size,
+      report_date, doctor_name, hospital_clinic, notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  stmt.run(
+    id,
+    report.patientId,
+    report.caregiverId,
+    report.title,
+    category,
+    report.fileName,
+    report.storedFilename,
+    report.fileType,
+    report.fileSize,
+    reportDate,
+    doctorName,
+    hospitalClinic,
+    notes
+  );
+
+  return {
+    id,
+    patientId: report.patientId,
+    caregiverId: report.caregiverId,
+    title: report.title,
+    category,
+    fileName: report.fileName,
+    storedFilename: report.storedFilename,
+    fileType: report.fileType,
+    fileSize: report.fileSize,
+    reportDate,
+    doctorName: doctorName || undefined,
+    hospitalClinic: hospitalClinic || undefined,
+    notes: notes || undefined,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function getPatientMedicalReports(patientId: string, category?: string): MedicalReportRecord[] {
+  let query = `
+    SELECT
+      id,
+      patient_id as patientId,
+      caregiver_id as caregiverId,
+      title,
+      category,
+      file_name as fileName,
+      stored_filename as storedFilename,
+      file_type as fileType,
+      file_size as fileSize,
+      report_date as reportDate,
+      doctor_name as doctorName,
+      hospital_clinic as hospitalClinic,
+      notes,
+      created_at as createdAt
+    FROM medical_reports
+    WHERE patient_id = ?
+  `;
+
+  const params: any[] = [patientId];
+  if (category && category !== 'all') {
+    query += ` AND category = ?`;
+    params.push(category);
+  }
+  query += ` ORDER BY report_date DESC, created_at DESC`;
+
+  const stmt = db.prepare(query);
+  return (stmt.all(...params) as unknown as MedicalReportRecord[]) || [];
+}
+
+export function getMedicalReportById(reportId: string): MedicalReportRecord | null {
+  const stmt = db.prepare(`
+    SELECT
+      id,
+      patient_id as patientId,
+      caregiver_id as caregiverId,
+      title,
+      category,
+      file_name as fileName,
+      stored_filename as storedFilename,
+      file_type as fileType,
+      file_size as fileSize,
+      report_date as reportDate,
+      doctor_name as doctorName,
+      hospital_clinic as hospitalClinic,
+      notes,
+      created_at as createdAt
+    FROM medical_reports
+    WHERE id = ?
+  `);
+  const row = stmt.get(reportId) as unknown as MedicalReportRecord | undefined;
+  return row || null;
+}
+
+export function deleteMedicalReport(reportId: string, patientId: string): { success: boolean; storedFilename?: string } {
+  const report = getMedicalReportById(reportId);
+  if (!report || report.patientId !== patientId) {
+    return { success: false };
+  }
+
+  db.prepare(`DELETE FROM medical_reports WHERE id = ?`).run(reportId);
+  return { success: true, storedFilename: report.storedFilename };
+}
+
+
 
 
 

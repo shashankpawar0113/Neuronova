@@ -6,7 +6,6 @@ import {
   Volume2,
   VolumeX,
   Sparkles,
-  MessageSquareHeart,
   Music,
   Gamepad2,
   Send,
@@ -14,18 +13,19 @@ import {
   RotateCcw,
   ExternalLink,
   Globe,
-  Radio,
   CheckCircle2,
   ArrowLeft,
   Square,
   HeartHandshake,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
 import { RoutineItem } from '../types';
 import { BACKEND_URL, NEUROGAMES_URL } from '../config/urls';
 import { LanguageSelectionModal, LanguageCode } from './LanguageSelectionModal';
 import { CallModal } from './CallModal';
 import { useLanguage } from '../context/LanguageContext';
+import { FluidVoiceOrb } from './FluidVoiceOrb';
 
 interface VoiceAssistantProps {
   userName: string;
@@ -60,7 +60,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [micError, setMicError] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [actionStage, setActionStage] = useState<ActionStage>('idle');
+  const [_actionStage, setActionStage] = useState<ActionStage>('idle');
   const [autoRedirectStatus, setAutoRedirectStatus] = useState<string | null>(null);
 
   // Modal & Mode controls
@@ -720,6 +720,66 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setAssistantReply(null);
     setSuggestedAction(null);
 
+    const qLower = query.toLowerCase().trim();
+
+    // Direct Interactive Voice Language Switches
+    if (
+      qLower.includes('speak in hindi') ||
+      qLower.includes('hindi me bolo') ||
+      qLower.includes('hindi mein bolo') ||
+      qLower.includes('hindi me baat') ||
+      qLower.includes('switch to hindi') ||
+      qLower.includes('hindi please') ||
+      qLower.includes('हिन्दी में बोलो') ||
+      qLower.includes('हिंदी में बोलो')
+    ) {
+      setSelectedLang('hi');
+      selectedLangRef.current = 'hi';
+      try {
+        localStorage.setItem('neuronova_voice_lang', 'hi');
+      } catch (_) {}
+      const reply = `नमस्ते, ${patientDisplayName}! अब मैं आपसे हिन्दी में बात करूँगी। बताइए, मैं आपकी क्या सहायता करूँ?`;
+      setAssistantReply(reply);
+      setIsLoading(false);
+      speakText(reply, 'hi');
+      return;
+    }
+
+    if (
+      qLower.includes('speak in english') ||
+      qLower.includes('switch to english') ||
+      qLower.includes('talk in english') ||
+      qLower.includes('english please')
+    ) {
+      setSelectedLang('en');
+      selectedLangRef.current = 'en';
+      try {
+        localStorage.setItem('neuronova_voice_lang', 'en');
+      } catch (_) {}
+      const reply = `Certainly, ${patientDisplayName}! I am now speaking with you in English. How can I assist you today?`;
+      setAssistantReply(reply);
+      setIsLoading(false);
+      speakText(reply, 'en');
+      return;
+    }
+
+    if (
+      qLower.includes('speak in hinglish') ||
+      qLower.includes('switch to hinglish') ||
+      qLower.includes('hinglish please')
+    ) {
+      setSelectedLang('hinglish');
+      selectedLangRef.current = 'hinglish';
+      try {
+        localStorage.setItem('neuronova_voice_lang', 'hinglish');
+      } catch (_) {}
+      const reply = `Zaroor, ${patientDisplayName}! Ab hum Hinglish mein baat karenge. Bataiye main aapki kya help karoon?`;
+      setAssistantReply(reply);
+      setIsLoading(false);
+      speakText(reply, 'hinglish');
+      return;
+    }
+
     try {
       const res = await fetch(`${BACKEND_URL || 'http://localhost:5001'}/api/voice-assistant`, {
         method: 'POST',
@@ -790,11 +850,23 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     } catch (err: any) {
       console.warn('[Voice Assistant] Backend request failed. Using deterministic fallback.');
       setActionStage('done');
-      const fallbackReply = selectedLangRef.current === 'hi'
-        ? `मैं आपकी सहायता के लिए यहाँ हूँ, ${userName}।`
-        : selectedLangRef.current === 'hinglish'
-        ? `Main aapke saath hoon, ${userName}. Aap bataiye main kya help karoon?`
-        : `I am right here beside you, ${userName}. How can I assist you today?`;
+      const qLower = query.toLowerCase();
+      let fallbackReply = '';
+      if (qLower.includes('story') || qLower.includes('kahani') || qLower.includes('tale') || qLower.includes('uplifting')) {
+        fallbackReply = selectedLangRef.current === 'hi'
+          ? `एक बार एक छोटे से पौधे ने सूरज से पूछा, 'आप रोज रोशनी क्यों देते हैं?' सूरज ने कहा, 'ताकि सबमें उम्मीद बनी रहे।' उसी तरह, ${userName}, आप भी अपनों के जीवन में उम्मीद और रोशनी हैं।`
+          : `Once in a quiet garden, a sunflower turned faithfully toward the morning light, reminding everyone that every new day brings fresh hope and purpose. Like that flower, ${userName}, your gentle spirit brings warmth to those around you today.`;
+      } else if (qLower.includes('joke') || qLower.includes('funny') || qLower.includes('chutkula')) {
+        fallbackReply = selectedLangRef.current === 'hi'
+          ? `दादी जी दीवार घड़ी पर क्यों बैठ गईं? ताकि वे चाय के लिए बिल्कुल 'टाइम पर' रहें! मुस्कुराते रहिए, ${userName}।`
+          : `Why did the grandmother sit on her clock? Because she wanted to be on time for her afternoon tea! I hope that brought a smile to your face, ${userName}.`;
+      } else {
+        fallbackReply = selectedLangRef.current === 'hi'
+          ? `मैं आपकी सहायता के लिए हमेशा यहाँ हूँ, ${userName}। आज का दिन बहुत शांत और सुखद है।`
+          : selectedLangRef.current === 'hinglish'
+          ? `Main aapke saath hoon, ${userName}. Aap bataiye main kya help karoon?`
+          : `I am right here with you, ${userName}. Tell me more, or let me know how I can make your day peaceful.`;
+      }
 
       setAssistantReply(fallbackReply);
       speakText(fallbackReply, selectedLangRef.current);
@@ -864,6 +936,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (selectedLang === 'hinglish') return 'Hinglish';
     return 'English';
   };
+
+  const patientDisplayName = React.useMemo(() => {
+    if (!userName) return 'Friend';
+    const first = userName.split(/[._\s]/)[0];
+    if (!first) return 'Friend';
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  }, [userName]);
 
   return (
     <>
@@ -952,196 +1031,203 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         </div>
       </div>
 
-      {/* Main Voice Assistant Modal */}
+      {/* Main Full-Page Voice Assistant */}
       {isOpen && (
         <div
-          className={`fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn ${isCallModalOpen ? 'z-30' : 'z-50'}`}
-          onClick={() => setIsOpen(false)}
+          className={`fixed inset-0 bg-[#060A17] text-white flex flex-col justify-between p-4 sm:p-8 select-none overflow-y-auto animate-fadeIn ${
+            isCallModalOpen ? 'z-30' : 'z-50'
+          }`}
+          style={{
+            background:
+              'radial-gradient(circle at 50% 36%, #0d1738 0%, #060a17 65%, #020409 100%)',
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="voice-assistant-title"
         >
-          <div
-            className="w-full max-w-2xl bg-gradient-to-b from-white to-amber-50/40 rounded-t-3xl sm:rounded-3xl border-t sm:border-2 border-amber-200 p-6 sm:p-8 shadow-2xl animate-slide-up flex flex-col max-h-[92vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="voice-assistant-title"
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-amber-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md">
-                  <MessageSquareHeart className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 id="voice-assistant-title" className="text-xl sm:text-2xl font-bold text-slate-900 font-brand">
-                    NeuroNova Voice Companion
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-slate-600 font-medium">
-                      {selectedLang === 'hi' ? 'हमेशा आपके साथ' : 'Always here to listen and assist you'}
-                    </span>
-                    <button
-                      onClick={() => setIsLanguageModalOpen(true)}
-                      className="text-xs px-2 py-0.5 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold flex items-center gap-1 transition-colors"
-                    >
-                      <Globe className="w-3 h-3" />
-                      <span>Language: {getLanguageLabel()}</span>
-                    </button>
-                  </div>
-                </div>
+          {/* Top Bar: Settings / Language Header */}
+          <div className="w-full flex items-center justify-between z-10">
+            {/* Left: Branding & Status */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400">
+                <Sparkles className="w-4 h-4" />
               </div>
-
-              {/* Close Button */}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
-                aria-label="Close voice assistant"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div>
+                <span className="text-xs sm:text-sm font-semibold text-slate-200 tracking-wide block">
+                  NeuroNova AI
+                </span>
+                <span className="text-[10px] text-blue-400/80 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {isListening ? 'Listening live...' : 'Active Companion'}
+                </span>
+              </div>
             </div>
 
+            {/* Right: Language Pill & Settings Gear */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsLanguageModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer"
+                title="Change Voice Language"
+              >
+                <Globe className="w-3.5 h-3.5 text-blue-400" />
+                <span>{getLanguageLabel()}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsLanguageModalOpen(true)}
+                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+                title="Settings"
+                aria-label="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Main Stage (Center Orb + Fluid Speech Interface) */}
+          <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full my-auto px-4 py-4 z-10">
             {isCaregiverMessageMode ? (
-              /* Integrated Caregiver Voice Messenger View */
-              <div className="my-4 flex flex-col items-center animate-fadeIn">
-                {/* Mode Top Bar */}
-                <div className="w-full flex items-center justify-between pb-3 border-b border-amber-200/70 mb-4">
+              /* Caregiver Voice Note Recording Mode in Dark Aesthetic */
+              <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-2xl rounded-3xl p-6 flex flex-col items-center shadow-2xl animate-fadeIn">
+                {/* Header */}
+                <div className="w-full flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                   <button
                     type="button"
                     onClick={closeCaregiverMessageMode}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-amber-400 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
                   >
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="w-3.5 h-3.5" />
                     <span>{selectedLang === 'hi' ? 'वापस' : 'Back'}</span>
                   </button>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100/90 px-3.5 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
-                    <HeartHandshake className="w-3.5 h-3.5 text-amber-700" />
-                    <span>{selectedLang === 'hi' ? 'केयरगिवर को वॉइस मैसेज' : 'Voice Message to Caregiver'}</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-rose-300 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20 flex items-center gap-1.5">
+                    <HeartHandshake className="w-3.5 h-3.5 text-rose-400" />
+                    <span>{selectedLang === 'hi' ? 'केयरगिवर को संदेश' : 'Message to Caregiver'}</span>
                   </span>
-                  <div className="w-16" />
+                  <div className="w-12" />
                 </div>
 
                 {caregiverMsgSentSuccess ? (
-                  <div className="w-full py-8 px-6 bg-emerald-50 rounded-3xl border-2 border-emerald-300 text-center flex flex-col items-center gap-3 animate-fadeIn">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg animate-bounce">
-                      <CheckCircle2 className="w-10 h-10" />
+                  <div className="w-full py-8 text-center flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center shadow-lg animate-bounce">
+                      <CheckCircle2 className="w-8 h-8" />
                     </div>
-                    <h4 className="text-xl font-black text-emerald-950 font-brand">
+                    <h4 className="text-lg font-bold text-white">
                       {selectedLang === 'hi' ? 'संदेश सफलतापूर्वक भेज दिया गया!' : 'Message Sent to Caregiver!'}
                     </h4>
-                    <p className="text-sm font-semibold text-emerald-800 max-w-md">
+                    <p className="text-xs text-slate-300 max-w-xs">
                       {selectedLang === 'hi'
-                        ? 'आपका वॉइस नोट आपके केयरगिवर के डैशबोर्ड पर सुरक्षित रूप से पहुँच गया है।'
-                        : 'Your voice note and speech transcript have been safely delivered to your caregiver.'}
+                        ? 'आपका वॉइस नोट आपके केयरगिवर के डैशबोर्ड पर पहुँच गया है।'
+                        : 'Your voice note has been safely delivered to your caregiver.'}
                     </p>
                     <button
                       type="button"
                       onClick={closeCaregiverMessageMode}
-                      className="mt-3 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+                      className="mt-2 px-6 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer"
                     >
                       {selectedLang === 'hi' ? 'वापस जाएँ (Done)' : 'Return to Companion'}
                     </button>
                   </div>
                 ) : (
                   <div className="w-full flex flex-col items-center gap-4">
-                    {/* Big Interactive Recording Button */}
+                    {/* Record Button */}
                     <div className="relative flex flex-col items-center my-2">
+                      {caregiverMsgRecording && (
+                        <span className="absolute -inset-2 rounded-full bg-rose-500/30 animate-ping pointer-events-none" />
+                      )}
                       <button
                         type="button"
                         onClick={() => {
-                          if (caregiverMsgRecording) {
-                            stopCaregiverRecording();
-                          } else {
-                            startCaregiverRecording();
-                          }
+                          if (caregiverMsgRecording) stopCaregiverRecording();
+                          else startCaregiverRecording();
                         }}
-                        className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center transition-all duration-300 border-4 shadow-2xl active:scale-95 cursor-pointer relative ${
+                        className={`w-20 h-20 rounded-full flex flex-col items-center justify-center transition-all duration-300 border-2 shadow-2xl active:scale-95 cursor-pointer relative ${
                           caregiverMsgRecording
-                            ? 'bg-gradient-to-tr from-rose-500 to-amber-500 border-white text-white animate-pulse'
-                            : 'bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-200 text-white hover:scale-105'
+                            ? 'bg-rose-600 border-rose-300 text-white animate-pulse'
+                            : 'bg-blue-600 hover:bg-blue-500 border-blue-400 text-white'
                         }`}
-                        title={caregiverMsgRecording ? 'Tap to finish recording' : 'Tap to start recording'}
                       >
-                        {caregiverMsgRecording && (
-                          <span className="absolute inset-0 rounded-full bg-rose-400 opacity-40 animate-ping pointer-events-none" />
-                        )}
                         {caregiverMsgRecording ? (
                           <>
-                            <Square className="w-10 h-10 text-white fill-current mb-1" />
-                            <span className="text-[11px] font-black uppercase tracking-wider">Tap to Stop</span>
+                            <Square className="w-6 h-6 fill-current mb-0.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Stop</span>
                           </>
                         ) : (
                           <>
-                            <Mic className="w-10 h-10 text-white mb-1" />
-                            <span className="text-[11px] font-black uppercase tracking-wider">Tap to Speak</span>
+                            <Mic className="w-7 h-7 mb-0.5" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Record</span>
                           </>
                         )}
                       </button>
 
-                      {/* Elapsed Timer / Status Pill */}
-                      <div className="mt-3 flex items-center gap-2">
+                      {/* Timer */}
+                      <div className="mt-3">
                         {caregiverMsgRecording ? (
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-xs font-bold border border-rose-200 animate-pulse">
-                            <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
-                            Recording Live: {Math.floor(caregiverMsgSeconds / 60)}:{String(caregiverMsgSeconds % 60).padStart(2, '0')}s
+                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-200 text-xs font-semibold border border-rose-500/30 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+                            Recording: {Math.floor(caregiverMsgSeconds / 60)}:
+                            {String(caregiverMsgSeconds % 60).padStart(2, '0')}s
                           </span>
                         ) : caregiverMsgSeconds > 0 ? (
-                          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                          <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/30">
                             Recorded: {caregiverMsgSeconds}s
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-slate-500">
+                          <span className="text-xs text-slate-400 font-medium">
                             {selectedLang === 'hi' ? 'बोलने के लिए माइक दबाएँ' : 'Tap microphone to speak'}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Live Transcript / Speech Bubble */}
-                    <div className="w-full p-4 rounded-2xl bg-white border border-amber-200 shadow-sm text-left">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-1.5">
+                    {/* Live Transcript Bubble */}
+                    <div className="w-full p-3.5 rounded-2xl bg-white/5 border border-white/10 text-left">
+                      <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-1">
                         <span className="uppercase tracking-wider">
-                          {selectedLang === 'hi' ? 'आपका संदेश:' : 'Your spoken message:'}
+                          {selectedLang === 'hi' ? 'आपका संदेश:' : 'Your message:'}
                         </span>
                         {caregiverMsgAudioUrl && (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Audio recorded</span>
+                          <span className="text-emerald-400 font-semibold flex items-center gap-1 text-[10px]">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Audio ready</span>
                           </span>
                         )}
                       </div>
-
-                      <p className="text-base sm:text-lg font-medium text-slate-800 italic min-h-[52px] leading-relaxed">
+                      <p className="text-sm font-medium text-slate-200 italic min-h-[40px] leading-relaxed line-clamp-2">
                         {caregiverMsgTranscript ? (
                           `"${caregiverMsgTranscript}"`
                         ) : caregiverMsgRecording ? (
-                          <span className="text-amber-600 font-semibold animate-pulse">
-                            {selectedLang === 'hi' ? 'सुन रहे हैं... बोलिए...' : 'Listening... Speak your message naturally...'}
+                          <span className="text-cyan-300 font-normal animate-pulse">
+                            {selectedLang === 'hi'
+                              ? 'सुन रहे हैं... बोलिए...'
+                              : 'Listening... speak your message naturally...'}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-normal">
+                          <span className="text-slate-500 font-normal">
                             {selectedLang === 'hi'
-                              ? 'माइक दबाकर बोलिए (जैसे "राहुल, मैं ठीक हूँ, बस याद आ रही थी")'
-                              : 'Tap microphone and speak (e.g. "Rahul, I took my medicines and am doing fine")'}
+                              ? 'माइक दबाकर बोलिए...'
+                              : 'Tap microphone and speak your message...'}
                           </span>
                         )}
                       </p>
                     </div>
 
-                    {/* Error Banner if any */}
                     {caregiverMsgError && (
-                      <div className="w-full p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="w-full p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-200 text-xs font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
                         <span>{caregiverMsgError}</span>
                       </div>
                     )}
 
-                    {/* Caregiver Messenger Actions */}
-                    <div className="w-full pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {/* Buttons */}
+                    <div className="w-full pt-1 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={closeCaregiverMessageMode}
-                          className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors cursor-pointer"
+                          className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white font-semibold text-xs transition-colors cursor-pointer"
                         >
                           {selectedLang === 'hi' ? 'रद्द करें' : 'Cancel'}
                         </button>
@@ -1156,9 +1242,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                               setCaregiverMsgSeconds(0);
                               startCaregiverRecording();
                             }}
-                            className="px-4 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                            className="px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 text-cyan-300 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
+                            <RotateCcw className="w-3 h-3" />
                             <span>{selectedLang === 'hi' ? 'फिर से बोलें' : 'Re-record'}</span>
                           </button>
                         )}
@@ -1168,17 +1254,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                         type="button"
                         onClick={sendCaregiverMessage}
                         disabled={isSendingCaregiverMsg || (!caregiverMsgTranscript && !caregiverMsgBlob)}
-                        className="w-full sm:w-auto min-h-[48px] px-8 py-2.5 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 disabled:opacity-40 text-white font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+                        className="h-9 px-5 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       >
                         {isSendingCaregiverMsg ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>{selectedLang === 'hi' ? 'भेज रहे हैं...' : 'Sending message...'}</span>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Sending...</span>
                           </>
                         ) : (
                           <>
-                            <Send className="w-4 h-4" />
-                            <span>{selectedLang === 'hi' ? 'केयरगिवर को भेजें' : 'Send to Caregiver'}</span>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{selectedLang === 'hi' ? 'संदेश भेजें' : 'Send'}</span>
                           </>
                         )}
                       </button>
@@ -1187,254 +1273,231 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 )}
               </div>
             ) : (
-              /* Standard Voice Assistant Pipeline View */
+              /* Voice Companion Center View matching user screenshot */
               <>
-                {/* Stage Progress Pipeline Indicator */}
-                <div className="mt-4 px-2 flex items-center justify-between text-xs font-bold text-slate-500 bg-white/70 rounded-xl p-2 border border-amber-100">
-                  <div className={`flex items-center gap-1.5 ${actionStage === 'listening' ? 'text-amber-600 font-extrabold' : ''}`}>
-                    <Mic className="w-3.5 h-3.5" />
-                    <span>1. Listening</span>
-                  </div>
-                  <span className="text-slate-300">→</span>
-                  <div className={`flex items-center gap-1.5 ${actionStage === 'understanding' ? 'text-amber-600 font-extrabold' : ''}`}>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>2. Understanding</span>
-                  </div>
-                  <span className="text-slate-300">→</span>
-                  <div className={`flex items-center gap-1.5 ${actionStage === 'doing' ? 'text-amber-600 font-extrabold' : ''}`}>
-                    <Radio className="w-3.5 h-3.5" />
-                    <span>3. Doing</span>
-                  </div>
-                  <span className="text-slate-300">→</span>
-                  <div className={`flex items-center gap-1.5 ${actionStage === 'done' ? 'text-emerald-600 font-extrabold' : ''}`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>4. Done</span>
-                  </div>
-                </div>
+                {/* Audio-Reactive Fluid Voice Orb (Interactive on inputs & outputs) */}
+                <FluidVoiceOrb
+                  isListening={isListening}
+                  isSpeaking={isSpeaking}
+                  isLoading={isLoading}
+                  size={210}
+                />
 
-                {/* Listening / Speaking State Box */}
-                <div className="my-4 py-6 bg-white rounded-3xl border border-amber-200/80 shadow-inner flex flex-col items-center justify-center px-4 text-center">
-                  {isListening ? (
-                    <>
-                      <div className="flex items-center justify-center space-x-2 h-14 mb-3">
-                        <span className="w-2.5 bg-amber-500 rounded-full animate-voice-bar-1" />
-                        <span className="w-2.5 bg-orange-500 rounded-full animate-voice-bar-2" />
-                        <span className="w-2.5 bg-amber-600 rounded-full animate-voice-bar-3" />
-                        <span className="w-2.5 bg-yellow-500 rounded-full animate-voice-bar-4" />
-                        <span className="w-2.5 bg-orange-600 rounded-full animate-voice-bar-5" />
-                      </div>
-                      <p className="text-xl font-bold text-slate-800 font-brand">
-                        {selectedLang === 'hi' ? 'आपकी आवाज़ सुन रहे हैं...' : 'Listening to your voice...'}
-                      </p>
-                      <p className="text-sm text-slate-500 mt-1 font-medium">
-                        {interimTranscript ? (
-                          <span className="text-amber-700 font-semibold italic">"{interimTranscript}..."</span>
-                        ) : (
-                          selectedLang === 'hi' ? 'सहज रूप से बोलिए। कोई जल्दी नहीं है।' : 'Speak naturally. There is no hurry.'
-                        )}
-                      </p>
-                    </>
-                  ) : micError ? (
-                    <div className="flex flex-col items-center px-4 py-2">
-                      <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 mb-2">
-                        <AlertCircle className="w-6 h-6" />
-                      </div>
-                      <p className="text-sm font-semibold text-slate-800 max-w-md">{micError}</p>
-                      <button
-                        onClick={() => startListening()}
-                        className="mt-3 px-4 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-amber-700 transition-colors cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>Try Microphone Again</span>
-                      </button>
+                {/* Typography Below Orb */}
+                {isListening ? (
+                  <div className="text-center mt-5 sm:mt-7 animate-fadeIn">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-semibold animate-pulse mb-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span>{selectedLang === 'hi' ? 'आपकी आवाज़ सुन रहे हैं...' : 'Listening to your voice...'}</span>
                     </div>
-                  ) : transcript ? (
-                    <div className="w-full text-left px-2 sm:px-4">
-                      <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block mb-1">
-                        {selectedLang === 'hi' ? 'आपने पूछा:' : 'You asked:'}
-                      </span>
-                      <p className="text-lg font-bold text-slate-900 font-brand italic mb-3">
-                        {transcript}
-                      </p>
-
-                      {/* Loading indicator */}
-                      {isLoading && (
-                        <div className="flex items-center gap-2 py-4 text-amber-600 font-bold text-sm">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                          <span>{selectedLang === 'hi' ? 'समझ रहे हैं...' : 'Understanding and acting...'}</span>
-                        </div>
+                    <h2 className="text-2xl sm:text-4xl font-normal text-white tracking-tight">
+                      I'm listening, {patientDisplayName}...
+                    </h2>
+                    <p className="text-lg sm:text-2xl font-light text-slate-300 mt-2 min-h-[36px]">
+                      {interimTranscript ? (
+                        <span className="text-cyan-300 italic font-medium">"{interimTranscript}..."</span>
+                      ) : (
+                        selectedLang === 'hi' ? 'आप क्या कहना चाहते हैं?' : "What's on your mind?"
                       )}
+                    </p>
+                  </div>
+                ) : isLoading ? (
+                  <div className="text-center mt-5 sm:mt-7 animate-fadeIn">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-purple-500/15 border border-purple-400/30 text-purple-300 text-xs font-semibold animate-pulse mb-2">
+                      <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                      <span>{selectedLang === 'hi' ? 'विचार कर रहे हैं...' : 'Processing answer...'}</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-4xl font-normal text-white tracking-tight flex items-center justify-center gap-2.5">
+                      <span>Thinking...</span>
+                    </h2>
+                    <p className="text-base sm:text-xl font-light text-slate-300 mt-2 italic">
+                      "{transcript.replace(/^"|"$/g, '')}"
+                    </p>
+                  </div>
+                ) : assistantReply ? (
+                  <div className="w-full max-w-xl flex flex-col items-center mt-4 text-center animate-fadeIn">
+                    {isSpeaking ? (
+                      <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-semibold animate-pulse mb-2">
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>{selectedLang === 'hi' ? 'उत्तर बोल रहे हैं...' : 'Speaking answer...'}</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-1.5">
+                        {selectedLang === 'hi' ? 'आपने पूछा:' : 'You asked:'} "{transcript.replace(/^"|"$/g, '')}"
+                      </p>
+                    )}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-xl text-left w-full shadow-2xl relative">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-base sm:text-lg text-slate-100 font-normal leading-relaxed">
+                          {assistantReply}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isSpeaking) stopSpeaking();
+                            else speakText(assistantReply, selectedLang);
+                          }}
+                          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-all shrink-0 cursor-pointer"
+                          title={isSpeaking ? 'Mute' : 'Replay'}
+                        >
+                          {isSpeaking ? (
+                            <VolumeX className="w-4 h-4 text-cyan-400" />
+                          ) : (
+                            <Volume2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
 
-                      {/* Assistant Reply Card */}
-                      {assistantReply && (
-                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                              <Volume2 className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
-                              <p className="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed font-brand">
-                                {assistantReply}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => {
-                                if (isSpeaking) {
-                                  stopSpeaking();
-                                } else {
-                                  speakText(assistantReply, selectedLang);
-                                }
-                              }}
-                              className="p-2 rounded-xl bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors shrink-0 cursor-pointer"
-                              title={isSpeaking ? 'Mute' : 'Replay'}
-                            >
-                              {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                            </button>
-                          </div>
-
-                          {/* Action trigger button */}
-                          {suggestedAction && (
-                            <div className="pt-2 border-t border-amber-200 flex flex-col items-end gap-1">
-                              <button
-                                onClick={() => {
-                                  window.location.href = suggestedAction.url;
-                                }}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
-                              >
-                                {suggestedAction.icon === 'music' && <Music className="w-4 h-4" />}
-                                {suggestedAction.icon === 'game' && <Gamepad2 className="w-4 h-4" />}
-                                <span>{suggestedAction.label}</span>
-                                <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-80" />
-                              </button>
-                              {autoRedirectStatus && (
-                                <p className="text-xs text-amber-700 font-semibold animate-pulse">
-                                  {autoRedirectStatus}
-                                </p>
-                              )}
-                            </div>
+                      {suggestedAction && (
+                        <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.location.href = suggestedAction.url;
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer"
+                          >
+                            {suggestedAction.icon === 'music' && <Music className="w-3.5 h-3.5" />}
+                            {suggestedAction.icon === 'game' && <Gamepad2 className="w-3.5 h-3.5" />}
+                            <span>{suggestedAction.label}</span>
+                            <ExternalLink className="w-3 h-3 ml-0.5 opacity-80" />
+                          </button>
+                          {autoRedirectStatus && (
+                            <p className="text-xs text-cyan-300 font-medium animate-pulse">
+                              {autoRedirectStatus}
+                            </p>
                           )}
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-base font-semibold text-slate-600">
-                      {selectedLang === 'hi'
-                        ? 'नीचे दिए गए किसी भी प्रश्न पर टैप करें या बोलें।'
-                        : selectedLang === 'hinglish'
-                        ? 'Neeche diye gaye questions par tap karein ya natural bolein.'
-                        : 'Tap any prompt below or speak naturally.'}
-                    </p>
-                  )}
-                </div>
 
-                {/* Direct 1-Tap Shortcut to Caregiver Voice Messenger */}
-                <div className="mb-3">
-                  <button
-                    type="button"
-                    onClick={openIntegratedCaregiverMessenger}
-                    className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-100/90 via-orange-100/80 to-amber-100/90 hover:from-amber-200 hover:to-orange-200 border border-amber-300 text-slate-900 transition-all flex items-center justify-between gap-3 shadow-xs active:scale-99 cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform shrink-0">
-                        <HeartHandshake className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="font-extrabold text-sm text-slate-900 block font-brand leading-tight">
-                          {selectedLang === 'hi' ? 'केयरगिवर को वॉइस मैसेज भेजें' : 'Send Voice Note to Caregiver'}
-                        </span>
-                        <span className="text-[11px] text-amber-900/70 font-medium">
-                          {selectedLang === 'hi' ? 'अपनी आवाज़ में बात रिकॉर्ड करके भेजें' : 'Record and send a personal spoken update'}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold text-amber-800 bg-white/90 px-3 py-1 rounded-xl border border-amber-200 shrink-0">
-                      {selectedLang === 'hi' ? 'रिकॉर्ड करें →' : 'Record →'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Quick Suggested Voice Prompts */}
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-                    {selectedLang === 'hi' ? 'या इन आसान प्रश्नों पर टैप करें:' : 'Helpful actions and questions:'}
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {samplePrompts.map((item, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSelectPrompt(item.title)}
-                        className="min-h-[54px] p-3 text-left rounded-2xl bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-400 text-slate-900 transition-all flex items-center gap-2.5 active:scale-98 cursor-pointer group shadow-sm"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm leading-snug">"{item.title}"</span>
-                          <span className="text-[11px] font-medium text-slate-500 mt-0.5">{item.sub}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Text Input Fallback */}
-                <form onSubmit={handleSendText} className="mt-4 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder={
-                      selectedLang === 'hi'
-                        ? 'यहाँ कुछ भी पूछें (जैसे "मेरी अगली दवाई कब है?")...'
-                        : selectedLang === 'hinglish'
-                        ? 'Yahan type karein (jaise "meri next medicine kab hai?")...'
-                        : 'Type anything (e.g. "when is my next medicine?")...'
-                    }
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:outline-none focus:border-amber-500 text-sm text-slate-800 placeholder-slate-400"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!textInput.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>Ask</span>
-                  </button>
-                </form>
-
-                {/* Bottom Actions */}
-                <div className="mt-5 pt-4 border-t border-amber-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <button
-                    onClick={() => {
-                      if (isListening) {
-                        stopListening();
-                      } else {
+                    {/* Quick follow-up action */}
+                    <button
+                      type="button"
+                      onClick={() => {
                         setTranscript('');
                         setAssistantReply(null);
                         setSuggestedAction(null);
                         startListening();
-                      }
-                    }}
-                    className="w-full sm:w-auto min-h-[50px] px-6 py-2 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-base flex items-center justify-center gap-2 border border-amber-300 transition-colors active:scale-98 cursor-pointer"
-                  >
-                    {isListening ? (
-                      <>
-                        <MicOff className="w-5 h-5" />
-                        <span>Pause Listening</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="w-5 h-5" />
-                        <span>Tap to Speak Again</span>
-                      </>
-                    )}
-                  </button>
+                      }}
+                      className="mt-3 px-4 py-1.5 rounded-full bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                    >
+                      <Mic className="w-3.5 h-3.5" />
+                      <span>{selectedLang === 'hi' ? 'अगला सवाल पूछें' : 'Ask another question'}</span>
+                    </button>
+                  </div>
+                ) : micError ? (
+                  <div className="flex flex-col items-center mt-5 text-center animate-fadeIn">
+                    <AlertCircle className="w-8 h-8 text-amber-400 mb-2" />
+                    <p className="text-sm sm:text-base text-slate-200 max-w-md">{micError}</p>
+                    <button
+                      type="button"
+                      onClick={() => startListening()}
+                      className="mt-3 px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all cursor-pointer"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center mt-5 sm:mt-7 animate-fadeIn">
+                    <h2 className="text-2xl sm:text-4xl font-normal text-white tracking-tight">
+                      I'm listening, {patientDisplayName}...
+                    </h2>
+                    <p className="text-lg sm:text-2xl font-light text-slate-300 mt-2">
+                      {selectedLang === 'hi' ? 'आप क्या कहना चाहते हैं?' : "What's on your mind?"}
+                    </p>
+                  </div>
+                )}
 
+                {/* Quick Suggestion Chips */}
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-6 max-w-xl">
+                  {samplePrompts.slice(0, 4).map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectPrompt(item.title)}
+                      className="px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs sm:text-sm text-slate-300 hover:text-white transition-all cursor-pointer backdrop-blur-md"
+                    >
+                      "{item.title}"
+                    </button>
+                  ))}
                   <button
-                    onClick={() => setIsOpen(false)}
-                    className="w-full sm:w-auto min-h-[50px] px-8 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-base shadow-md transition-colors active:scale-98 cursor-pointer"
+                    type="button"
+                    onClick={openIntegratedCaregiverMessenger}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs text-rose-300 hover:text-rose-200 transition-all cursor-pointer"
                   >
-                    Done
+                    <HeartHandshake className="w-3.5 h-3.5 text-rose-400" />
+                    <span>{selectedLang === 'hi' ? 'केयरगिवर को वॉइस नोट' : 'Voice Note to Caregiver'}</span>
                   </button>
                 </div>
               </>
             )}
+          </div>
+
+          {/* Bottom Dock / Floating Pill Controls (matching reference image) */}
+          <div className="w-full flex flex-col items-center gap-3 pt-3 pb-2 sm:pb-4 z-10">
+            {/* Minimalist typed query input bar */}
+            <form onSubmit={handleSendText} className="flex items-center gap-2 max-w-md w-full px-4">
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder={
+                  selectedLang === 'hi'
+                    ? 'या यहाँ कुछ लिखकर पूछें...'
+                    : selectedLang === 'hinglish'
+                    ? 'Ya yahan type karke poochein...'
+                    : 'Or type a question here...'
+                }
+                className="flex-1 h-9 px-4 rounded-full bg-white/5 border border-white/10 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 backdrop-blur-md"
+              />
+              {textInput.trim() && (
+                <button
+                  type="submit"
+                  className="h-9 px-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold cursor-pointer transition-all"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </form>
+
+            {/* Bottom Dual Pill Container */}
+            <div className="bg-[#121829]/90 backdrop-blur-2xl border border-white/10 p-2 rounded-full flex items-center gap-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.65)]">
+              {/* Circular Close Button (X) */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="w-12 h-12 rounded-full bg-[#1b233a] hover:bg-[#253050] text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
+                aria-label="Close voice assistant"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Circular Microphone Toggle Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    setTranscript('');
+                    setAssistantReply(null);
+                    setSuggestedAction(null);
+                    startListening();
+                  }
+                }}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-md ${
+                  isListening
+                    ? 'bg-blue-600 text-white shadow-[0_0_24px_rgba(37,99,235,0.7)] animate-pulse'
+                    : 'bg-[#202b48] hover:bg-[#2c3b64] text-slate-200 hover:text-white'
+                }`}
+                aria-label={isListening ? 'Stop listening' : 'Start listening'}
+                title={isListening ? 'Stop listening' : 'Start listening'}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
       )}

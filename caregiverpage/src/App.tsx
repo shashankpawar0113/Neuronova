@@ -162,10 +162,12 @@ export const App: React.FC = () => {
 
     socket.on('patient:task:missed', (data: any) => {
       setMissedTasksCount(prev => prev + 1);
+      const taskName = data.taskTitle || data.title || 'Scheduled task';
+      const scheduledTime = data.scheduledTime || 'the scheduled time';
       setActiveAlert({
         id: `task_miss_${Date.now()}`,
         title: '⚠️ Missed Scheduled Task',
-        message: `"${data.title}" was scheduled for ${data.scheduledTime} and has passed the grace period.`,
+        message: `"${taskName}" was scheduled for ${scheduledTime} and has passed the grace period.`,
         type: 'warning',
       });
     });
@@ -186,6 +188,15 @@ export const App: React.FC = () => {
       socket.off('healthworker:concern:new');
     };
   }, [session.userId, selectedPatientId]);
+
+  // Auto-dismiss floating notifications after 5 seconds
+  useEffect(() => {
+    if (!activeAlert) return;
+    const timer = setTimeout(() => {
+      setActiveAlert(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [activeAlert]);
 
   // Handle successful linking
   const handleLinkSuccess = async (newPatientId: string) => {
@@ -278,7 +289,7 @@ export const App: React.FC = () => {
     if (tab === 'dashboard') {
       const el = document.getElementById('vitals-section');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (['analytics', 'games', 'music', 'routine', 'voice'].includes(tab)) {
+    } else if (['analytics', 'games', 'music', 'routine', 'voice', 'reports'].includes(tab)) {
       const el = document.getElementById('activity-section');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -324,29 +335,45 @@ export const App: React.FC = () => {
 
         {/* Real-time Event Floating Alert Toast */}
         {activeAlert && (
-          <div className="fixed top-20 right-6 z-50 max-w-md w-full shadow-2xl">
-            <div className={`p-4 rounded-2xl border flex items-start justify-between gap-3 ${
-              activeAlert.type === 'success'
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                : activeAlert.type === 'warning'
-                ? 'bg-amber-50 border-amber-300 text-amber-950'
-                : 'bg-pink-50 border-pink-300 text-[#111625]'
-            }`}>
-              <div className="flex items-start gap-3">
+          <div className="fixed top-20 right-6 z-50 max-w-md w-full pointer-events-none animate-fadeIn">
+            <div
+              className={`pointer-events-auto relative p-4 rounded-2xl border shadow-xl backdrop-blur-md overflow-hidden flex items-start justify-between gap-3 ${
+                activeAlert.type === 'success'
+                  ? 'bg-emerald-50/95 border-emerald-300 text-emerald-950 shadow-emerald-900/10'
+                  : activeAlert.type === 'warning'
+                  ? 'bg-amber-50/95 border-amber-300 text-amber-950 shadow-amber-900/10'
+                  : 'bg-pink-50/95 border-pink-300 text-[#111625] shadow-pink-900/10'
+              }`}
+            >
+              <div className="flex items-start gap-3 min-w-0 pr-2">
                 {activeAlert.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}
                 {activeAlert.type === 'warning' && <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
                 {activeAlert.type === 'alert' && <Mic className="w-5 h-5 text-[#E86D7C] shrink-0 mt-0.5" />}
-                <div>
-                  <h5 className="font-extrabold text-xs sm:text-sm">{activeAlert.title}</h5>
-                  <p className="text-xs opacity-90 mt-0.5">{activeAlert.message}</p>
+                <div className="min-w-0">
+                  <h5 className="font-extrabold text-xs sm:text-sm leading-tight">{activeAlert.title}</h5>
+                  <p className="text-xs opacity-90 mt-1 leading-snug">{activeAlert.message}</p>
                 </div>
               </div>
               <button
                 onClick={() => setActiveAlert(null)}
-                className="p-1 rounded-lg hover:bg-black/10 transition-all cursor-pointer shrink-0"
+                className="p-1 rounded-lg hover:bg-black/10 text-stone-500 hover:text-stone-800 transition-all cursor-pointer shrink-0"
+                title="Dismiss"
               >
                 <X className="w-4 h-4" />
               </button>
+
+              {/* Smooth auto-dismiss countdown bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/5 overflow-hidden">
+                <div
+                  className={`h-full toast-countdown ${
+                    activeAlert.type === 'success'
+                      ? 'bg-emerald-500'
+                      : activeAlert.type === 'warning'
+                      ? 'bg-amber-500'
+                      : 'bg-[#E86D7C]'
+                  }`}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -425,6 +452,9 @@ export const App: React.FC = () => {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         caregiverName={session.name}
+        caregiverId={session.userId}
+        patientInfo={currentPatientInfo}
+        overview={overview}
       />
 
       {/* WebRTC Real-Time Patient Incoming Call Modal */}

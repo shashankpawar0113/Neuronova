@@ -70,5 +70,20 @@ Desktop.ini
 .vite/
 *.local
 
-# ─── Miscellaneous ────────────────────────────────────────────────────────────
+# ─── Miscellaneous & Local Scratch ────────────────────────────────────────────
 scratch/
+data/
+*/data/
+
+# ─── Internal Agent Skills & Architecture Diagrams (Local-only) ───────────────
+.agents/
+*.visual-check.*
+neuronova-architecture.html
+caregiver-login-sequence.html
+neuronova-dataflow.html
+*-architecture.html
+*-sequence.html
+*-dataflow.html
+*-workflow.html
+*-lifecycle.html
+

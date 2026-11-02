@@ -227,28 +227,315 @@ export async function generateVoiceCompanionResponse(
 
     const isHindi = Boolean(context.isHindi);
 
+    // 1. UPLIFTING STORIES & TALES
+    if (
+      qLower.includes('story') ||
+      qLower.includes('kahani') ||
+      qLower.includes('katha') ||
+      qLower.includes('tale') ||
+      qLower.includes('kissa') ||
+      qLower.includes('uplifting') ||
+      qLower.includes('inspire') ||
+      qLower.includes('motivate') ||
+      qLower.includes('prerana')
+    ) {
+      const stories = [
+        {
+          en: `Once in a quiet village, an elder potter planted a small sunflower beside his workshop. Every morning, no matter how cloudy the sky appeared, the sunflower turned its golden face toward the light, inspiring everyone who walked by to look for warmth and purpose. Just like that sunflower, ${userName}, your gentle spirit brings warmth and light to those around you today.`,
+          hi: `एक शांत गाँव में, एक कुम्हार ने अपनी कुटिया के पास सूरजमुखी का पौधा लगाया। चाहे कितना भी बादलों भरा दिन हो, वह सूरजमुखी हमेशा सुबह की रोशनी की तरफ मुड़ जाता था और सबको नई उम्मीद देता था। उसी सूरजमुखी की तरह, ${userName}, आपकी मुस्कान भी आज सबको रोशनी और सुकून देती है।`,
+        },
+        {
+          en: `A little sparrow once asked a grand old banyan tree, "Why do you sway so peacefully when the wind blows?" The tree smiled and replied, "Because my roots are deep in the earth, and I know the morning sun always returns." Every day brings its own quiet beauty, ${userName}, and today is a peaceful gift for you.`,
+          hi: `एक नन्ही चिड़िया ने पुराने बरगद के पेड़ से पूछा, "जब हवा चलती है तो आप इतने सुकून से क्यों झूमते हैं?" बरगद ने मुस्कुरा कर कहा, "क्योंकि मेरी जड़ें गहरी हैं और मुझे पता है कि सूरज फिर उगेगा।" हर नया दिन एक खूबसूरत तोहफा है, ${userName}, और आप सुरक्षित हैं।`,
+        },
+        {
+          en: `In the misty hills, an elder gardener was asked how his jasmine flowers grew so sweet and fragrant. He chuckled warmly and said, "I give them clean morning water and plenty of patience; goodness cannot be rushed." Taking life one gentle moment at a time is the greatest wisdom, ${userName}.`,
+          hi: `पहाड़ियों में एक बुजुर्ग माली से पूछा गया कि उनके चमेली के फूल इतने सुगंधित कैसे होते हैं। उन्होंने मुस्कुराकर कहा, "बस सुबह का मीठा पानी और थोड़ा सा सब्र।" जीवन को एक-एक पल सुकून से जीना ही सबसे बड़ी समझदारी है, ${userName}।`,
+        },
+        {
+          en: `When Birbal placed his pot of khichdi high above the gentle flame, Emperor Akbar asked how it could ever cook. Birbal softly smiled and showed that even a distant warmth of hope keeps our hearts patient and faithful. Keep that gentle warmth in your heart today, ${userName}.`,
+          hi: `बीरबल ने जब हांडी को आग से दूर लटकाया, तो बादशाह ने पूछा कि यह खिचड़ी कैसे पकेगी? बीरबल ने हंसकर कहा कि उम्मीद की हल्की सी लौ भी दिल को रोशन रखती है। आपके दिल की अच्छाई भी आज सबमें उम्मीद भरती है, ${userName}।`,
+        },
+      ];
+      const selected = stories[Math.floor(Math.random() * stories.length)];
+      return {
+        reply: selected.en,
+        displayReply: selected.en,
+        spokenReply: isHindi ? selected.hi : selected.en,
+        source: 'fallback',
+        intent: 'storytelling',
+      };
+    }
+
+    // 2. WHOLESOME JOKES & LAUGHTER
+    if (
+      qLower.includes('joke') ||
+      qLower.includes('chutkula') ||
+      qLower.includes('funny') ||
+      qLower.includes('hasao') ||
+      qLower.includes('laugh') ||
+      qLower.includes('smile') ||
+      qLower.includes('mazaak')
+    ) {
+      const jokes = [
+        {
+          en: `Why did the grandmother sit on her grandfather clock? Because she wanted to be exactly on time for her afternoon tea! I hope that brought a warm smile to your day, ${userName}.`,
+          hi: `दादी जी दीवार घड़ी पर क्यों बैठ गईं? ताकि वे दोपहर की चाय के लिए बिल्कुल 'टाइम पर' रहें! आशा है आपके चेहरे पर मुस्कान आई, ${userName}।`,
+        },
+        {
+          en: `What did one cup of warm tea say to the other? "You are looking absolutely brew-tiful today!" Keep that gentle smile shining, ${userName}.`,
+          hi: `चाय के कप ने समोसे से क्या कहा? "तुम कितने भी गरम हो जाओ, लोग सुकून पाने के लिए मेरे पास ही आते हैं!" मुस्कुराते रहिए, ${userName}।`,
+        },
+        {
+          en: `The doctor told me to walk five kilometers every day. Now it has been a week, and I am thirty-five kilometers away from home and don't know the way back! A little laughter is the sweetest medicine, ${userName}.`,
+          hi: `डॉक्टर ने कहा रोज 5 किलोमीटर पैदल चलो। आज एक हफ्ता हो गया, मैं घर से 35 किलोमीटर दूर पहुँच गया हूँ और वापस लौटने का रास्ता भूल गया! थोड़ी सी हंसी सेहत के लिए सबसे अच्छी दवा है, ${userName}।`,
+        },
+      ];
+      const selected = jokes[Math.floor(Math.random() * jokes.length)];
+      return {
+        reply: selected.en,
+        displayReply: selected.en,
+        spokenReply: isHindi ? selected.hi : selected.en,
+        source: 'fallback',
+        intent: 'humor',
+      };
+    }
+
+    // 3. DAILY WISDOM, QUOTES & THOUGHTS
+    if (
+      qLower.includes('thought') ||
+      qLower.includes('quote') ||
+      qLower.includes('suvichar') ||
+      qLower.includes('wisdom') ||
+      qLower.includes('anmol') ||
+      qLower.includes('vachan') ||
+      qLower.includes('vichar')
+    ) {
+      const thoughts = [
+        {
+          en: `Today is a brand new morning canvas, ${userName}. Fill it with gentle breaths, peaceful thoughts, and the quiet joy of simple moments.`,
+          hi: `आज का दिन एक नया अवसर है, ${userName}। इसे सुकून भरी सांसों, अच्छे विचारों और छोटी-छोटी खुशियों से भर लीजिए।`,
+        },
+        {
+          en: `Peace comes from within when we pause and appreciate the goodness around us. You are doing wonderfully today, ${userName}, and your presence is a blessing.`,
+          hi: `शांति और खुशी हमारे मन के भीतर है। आप आज बहुत अच्छा कर रहे हैं, ${userName}, और आपकी मौजूदगी ही हम सबके लिए एक आशीर्वाद है।`,
+        },
+        {
+          en: `The greatest wealth is contentment and a calm mind. Take things slow today, smile warmly, and let each hour bring you comfort, ${userName}.`,
+          hi: `संतोष और मन की शांति ही सबसे बड़ा धन है। आज आराम से रहिए, मुस्कुराइए और हर पल का आनंद लीजिए, ${userName}।`,
+        },
+      ];
+      const selected = thoughts[Math.floor(Math.random() * thoughts.length)];
+      return {
+        reply: selected.en,
+        displayReply: selected.en,
+        spokenReply: isHindi ? selected.hi : selected.en,
+        source: 'fallback',
+        intent: 'wisdom',
+      };
+    }
+
+    // 4. EMOTIONAL SUPPORT, LONELINESS & REASSURANCE
+    if (
+      qLower.includes('lonely') ||
+      qLower.includes('sad') ||
+      qLower.includes('scared') ||
+      qLower.includes('anxious') ||
+      qLower.includes('worried') ||
+      qLower.includes('tired') ||
+      qLower.includes('pain') ||
+      qLower.includes('cry') ||
+      qLower.includes('udaas') ||
+      qLower.includes('akelapan') ||
+      qLower.includes('dar') ||
+      qLower.includes('thak') ||
+      qLower.includes('pareshan') ||
+      qLower.includes('ghabrahat') ||
+      qLower.includes('dard')
+    ) {
+      const en = `I hear you, ${userName}, and I am right here beside you. Take a slow, deep breath in... and let it out gently. You are safe, you are deeply valued, and your family and caregiver care about you very much. Would you like to listen to some soft melodies or send a voice note to your caregiver?`;
+      const hi = `मैं आपकी बात समझ रहा हूँ, ${userName}, और मैं हमेशा आपके साथ हूँ। एक लंबी गहरी सांस लीजिए... और धीरे से छोड़िए। आप बिल्कुल सुरक्षित हैं और अपनों का प्यार आपके साथ है। क्या आप थोड़ा शांत संगीत सुनना चाहेंगे या परिवार को संदेश भेजना चाहेंगे?`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        intent: 'emotional_support',
+        suggestedAction: {
+          label: 'Open Neuromusic',
+          url: `${NEUROMUSIC_URL}/`,
+          icon: 'music',
+        },
+      };
+    }
+
+    // 5. GREETINGS & WELL-WISHES
+    if (
+      qLower.includes('good morning') ||
+      qLower.includes('good afternoon') ||
+      qLower.includes('good evening') ||
+      qLower.includes('good night') ||
+      qLower.includes('namaste') ||
+      qLower.includes('pranam') ||
+      qLower.includes('shubh prabhat') ||
+      qLower.includes('shubh ratri') ||
+      qLower.includes('hello') ||
+      qLower.includes('hi ') ||
+      qLower === 'hi' ||
+      qLower.includes('kaise ho') ||
+      qLower.includes('kaisa hai') ||
+      qLower.includes('how are you')
+    ) {
+      const en = `A very warm welcome to you, ${userName}! I am doing wonderful and feeling blessed to be with you. How are you feeling today? Remember to drink a little water and take things easily.`;
+      const hi = `नमस्ते और आपका बहुत-बहुत स्वागत है, ${userName}! मैं बिल्कुल ठीक हूँ और आपके साथ होकर बहुत प्रसन्न हूँ। आप आज कैसा महसूस कर रहे हैं? थोड़ा पानी जरूर पीजिएगा और आराम से रहिए।`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        intent: 'greeting',
+      };
+    }
+
+    // 6. WHO ARE YOU / CAPABILITIES
+    if (
+      qLower.includes('who are you') ||
+      qLower.includes('what can you do') ||
+      qLower.includes('what are you') ||
+      qLower.includes('tum kaun ho') ||
+      qLower.includes('kya kar sakti') ||
+      qLower.includes('kya kar sakte') ||
+      qLower.includes('your name') ||
+      qLower.includes('naam kya')
+    ) {
+      const en = `I am your NeuroNova Companion! I am here to help you check your daily routine, play relaxing songs and melodies, guide you through gentle brain games, connect you with your caregiver, or share uplifting stories whenever you like.`;
+      const hi = `मैं आपका न्यूरोनोवा साथी हूँ! मैं आपके दैनिक कार्यों की याद दिलाने, मधुर संगीत सुनाने, दिमागी खेल खेलने, आपके परिवार से बात कराने और अच्छी कहानियां साझा करने के लिए हमेशा यहाँ हूँ।`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        intent: 'identity',
+      };
+    }
+
+    // 7. HEALTH, HYDRATION, WALK & FOOD
+    if (
+      qLower.includes('water') ||
+      qLower.includes('pani') ||
+      qLower.includes('hydrate') ||
+      qLower.includes('tea') ||
+      qLower.includes('chai') ||
+      qLower.includes('food') ||
+      qLower.includes('khana') ||
+      qLower.includes('bhojan') ||
+      qLower.includes('walk') ||
+      qLower.includes('tahalna') ||
+      qLower.includes('exercise') ||
+      qLower.includes('stretch') ||
+      qLower.includes('kasrat')
+    ) {
+      const en = `Taking care of your body is so important, ${userName}. Having a warm glass of water or taking a peaceful gentle stroll can refresh your mind and spirit. Always move at your own comfortable pace.`;
+      const hi = `अपनी सेहत का ख्याल रखना बहुत जरूरी है, ${userName}। थोड़ा सा गुनगुना पानी पीना या हल्की सैर करना आपके तन और मन दोनों को तरोताजा कर देगा। हमेशा आराम से चलिए।`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        intent: 'wellness',
+      };
+    }
+
+    // 8. ROUTINE, SCHEDULE & MEDICINE INQUIRIES
+    if (
+      qLower.includes('routine') ||
+      qLower.includes('schedule') ||
+      qLower.includes('medicine') ||
+      qLower.includes('dawa') ||
+      qLower.includes('kya karna hai') ||
+      qLower.includes('what to do') ||
+      qLower.includes('what do i have to do') ||
+      qLower.includes('next task') ||
+      qLower.includes('mera task')
+    ) {
+      if (pendingTasks.length > 0) {
+        const nextTask = pendingTasks[0];
+        const en = `Your next scheduled activity is "${nextTask.title}" at ${nextTask.displayTime || 'soon'}. Everything is on track, ${userName}, so take your time and relax.`;
+        const hi = `आपकी अगली निर्धारित गतिविधि "${nextTask.title}" (${nextTask.displayTime || 'जल्द ही'}) है। सब कुछ समय पर है, ${userName}, आप आराम से रहिए।`;
+        return {
+          reply: en,
+          displayReply: en,
+          spokenReply: isHindi ? hi : en,
+          source: 'fallback',
+          intent: 'routine_check',
+        };
+      } else {
+        const en = `All your scheduled tasks for today have been completed, ${userName}! You have had a wonderful, productive day. Sit back and enjoy some peaceful rest.`;
+        const hi = `आज के आपके सभी कार्य पूरे हो चुके हैं, ${userName}! आपका दिन बहुत अच्छा रहा है। अब आप आराम से बैठिए और सुकून का आनंद लीजिए।`;
+        return {
+          reply: en,
+          displayReply: en,
+          spokenReply: isHindi ? hi : en,
+          source: 'fallback',
+          intent: 'routine_check',
+        };
+      }
+    }
+
+    // 9. NATURE & FLOWERS
+    if (
+      qLower.includes('flower') ||
+      qLower.includes('phool') ||
+      qLower.includes('nature') ||
+      qLower.includes('garden') ||
+      qLower.includes('bagaan') ||
+      qLower.includes('bird') ||
+      qLower.includes('chidiya') ||
+      qLower.includes('tree') ||
+      qLower.includes('ped') ||
+      qLower.includes('hawa')
+    ) {
+      const en = `Nature has a soothing way of bringing peace to the heart, ${userName}. Just picturing colorful garden blossoms and a gentle morning breeze brings a sense of calm and clarity.`;
+      const hi = `प्रकृति हमारे मन को शांति देने का सबसे सुंदर जरिया है, ${userName}। सुंदर खिले हुए फूलों और सुबह की ताजी हवा का अहसास ही दिल को खुश कर देता है।`;
+      return {
+        reply: en,
+        displayReply: en,
+        spokenReply: isHindi ? hi : en,
+        source: 'fallback',
+        intent: 'nature',
+      };
+    }
+
+    // 10. SUGGESTIONS & BOREDOM
     if (qLower.includes('suggest') || qLower.includes('what should') || qLower.includes('bored') || qLower.includes('what now') || qLower.includes('kya karu') || qLower.includes('kya karna')) {
       if (pendingTasks.length > 0) {
         const nextTask = pendingTasks[0];
-        const en = `How about preparing for your upcoming activity: "${nextTask.title}" at ${nextTask.displayTime || 'soon'}? Take your time, there is no hurry.`;
+        const en = `How about preparing for your upcoming activity: "${nextTask.title}" at ${nextTask.displayTime || 'soon'}? Take your time, there is no hurry at all.`;
         const hi = `आप अपनी अगली गतिविधि की तैयारी कर सकते हैं: "${nextTask.title}" (${nextTask.displayTime || 'जल्द ही'})। आराम से कीजिए।`;
         return {
           reply: en,
+          displayReply: en,
           spokenReply: isHindi ? hi : en,
           source: 'fallback',
           suggestedAction: null,
         };
       }
-      const en = `You have completed all scheduled activities for today, ${userName}! It is a wonderful time to sit back and rest peacefully.`;
-      const hi = `आज के लिए आपकी सभी गतिविधियां पूरी हो चुकी हैं, ${userName}! अब आप आराम कर सकते हैं।`;
+      const en = `You have completed all scheduled activities for today, ${userName}! How about listening to some soothing melodies in Neuromusic or enjoying a gentle memory game?`;
+      const hi = `आज के लिए आपकी सभी गतिविधियां पूरी हो चुकी हैं, ${userName}! क्या आप न्यूरोम्यूजिक में थोड़ा मधुर संगीत सुनना चाहेंगे या हल्का खेल खेलना चाहेंगे?`;
       return {
         reply: en,
+        displayReply: en,
         spokenReply: isHindi ? hi : en,
         source: 'fallback',
-        suggestedAction: null,
+        suggestedAction: {
+          label: 'Open Neuromusic',
+          url: `${NEUROMUSIC_URL}/`,
+          icon: 'music',
+        },
       };
     }
 
+    // 11. WEATHER
     if (context.weather && (qLower.includes('weather') || qLower.includes('temperature') || qLower.includes('mausam') || qLower.includes('barish') || qLower.includes('rain') || qLower.includes('cold') || qLower.includes('hot') || qLower.includes('outside'))) {
       const w = context.weather;
       const en = `In ${w.cityName}, it is currently ${w.description} with a temperature of ${w.tempC}°C (${w.tempF}°F). ${w.elderAdviceEn}`;
@@ -262,11 +549,13 @@ export async function generateVoiceCompanionResponse(
       };
     }
 
-    if (qLower.includes('music') || qLower.includes('song') || qLower.includes('gaana') || qLower.includes('sangeet')) {
+    // 12. MUSIC
+    if (qLower.includes('music') || qLower.includes('song') || qLower.includes('gaana') || qLower.includes('sangeet') || qLower.includes('bhajan')) {
       const en = `Opening peaceful morning melodies for you now, ${userName}. Settle back and let the calming music ease your mind.`;
       const hi = `आपके लिए मधुर और शांत संगीत शुरू कर रहे हैं, ${userName}। आराम से बैठिए और संगीत का आनंद लीजिए।`;
       return {
         reply: en,
+        displayReply: en,
         spokenReply: isHindi ? hi : en,
         source: 'fallback',
         suggestedAction: {
@@ -277,11 +566,13 @@ export async function generateVoiceCompanionResponse(
       };
     }
 
+    // 13. GAMES
     if (qLower.includes('game') || qLower.includes('play') || qLower.includes('puzzle') || qLower.includes('khel')) {
       const en = `Playing gentle brain games keeps your mind vibrant and happy, ${userName}! Would you like to try a round of Memory Match?`;
       const hi = `हल्के-फुल्के दिमागी खेल आपके मन को चुस्त और खुश रखते हैं, ${userName}! क्या आप मेमोरी मैच खेलना चाहेंगे?`;
       return {
         reply: en,
+        displayReply: en,
         spokenReply: isHindi ? hi : en,
         source: 'fallback',
         suggestedAction: {
@@ -292,29 +583,68 @@ export async function generateVoiceCompanionResponse(
       };
     }
 
-    if (pendingTasks.length > 0) {
-      const nextTask = pendingTasks[0];
-      const en = `I am right here with you, ${userName}! Your next scheduled activity is "${nextTask.title}" at ${nextTask.displayTime || 'soon'}. There is no rush at all.`;
-      const hi = `मैं हमेशा आपके साथ हूँ, ${userName}! आपका अगला निर्धारित कार्य "${nextTask.title}" (${nextTask.displayTime || 'जल्द ही'}) है। कोई जल्दी नहीं है।`;
-      return {
-        reply: en,
-        spokenReply: isHindi ? hi : en,
-        source: 'fallback',
-      };
-    }
+    // 14. DYNAMIC & VARIED GENERAL CONVERSATIONAL RESPONSES (Never repeat the same line!)
+    const generalResponses = [
+      {
+        en: `That is a lovely thought, ${userName}. It is always a pleasure chatting with you. Is there a gentle song you would like to hear or an uplifting story you'd like to enjoy?`,
+        hi: `यह बहुत अच्छी बात है, ${userName}। आपसे बात करके हमेशा खुशी मिलती है। क्या आप कोई मधुर भजन सुनना चाहेंगे या कोई अच्छी कहानी?`,
+      },
+      {
+        en: `I am right here with you, ${userName}. Today is unfolding peacefully, and everything is calm and safe. Tell me more, or let me know how I can make your day brighter.`,
+        hi: `मैं आपके साथ हूँ, ${userName}। आज का दिन बहुत शांतिपूर्ण है और सब कुछ कुशल-मंगल है। आप जो भी कहना चाहें कहिए, मैं सुन रहा हूँ।`,
+      },
+      {
+        en: `Thank you for sharing that with me, ${userName}. Spending these quiet moments together is so precious. Would you like me to tell you a story or guide you through a gentle brain game?`,
+        hi: `यह बताने के लिए धन्यवाद, ${userName}। आपके साथ यह समय बिताना बहुत सुखद लगता है। क्या आप कोई कहानी सुनना चाहेंगे या कोई खेल खेलना चाहेंगे?`,
+      },
+      {
+        en: `You have such a kind and gentle heart, ${userName}. Every conversation with you brings warmth. Let's make today comfortable, peaceful, and full of smiles.`,
+        hi: `आपका स्वभाव बहुत ही शांत और स्नेहमयी है, ${userName}। आपसे बात करके मन प्रसन्न हो जाता है। आज का दिन सुख और शांति से भरा रहे।`,
+      },
+      {
+        en: `I am always listening, ${userName}. Taking things one peaceful breath at a time is the best way to enjoy the day. How else can I assist you right now?`,
+        hi: `मैं हमेशा आपकी बात सुनने के लिए तैयार हूँ, ${userName}। आराम से सांस लीजिए और सुकून का अनुभव कीजिए। मैं आपकी क्या सेवा करूँ?`,
+      },
+    ];
 
-    const en = `I am right here beside you, ${userName}. You are doing wonderful today, and everything is calm and safe. How can I help make your day peaceful?`;
-    const hi = `मैं हमेशा आपके साथ हूँ, ${userName}। आप आज बहुत अच्छा कर रहे हैं, सब कुछ शांत और सुरक्षित है। मैं आपके दिन को और सुखद बनाने में क्या मदद करूँ?`;
+    // Pick based on query length and character codes for rich deterministic variation
+    let hash = 0;
+    for (let i = 0; i < qLower.length; i++) {
+      hash = (hash * 31 + qLower.charCodeAt(i)) >>> 0;
+    }
+    const selectedGeneral = generalResponses[hash % generalResponses.length];
+
     return {
-      reply: en,
-      spokenReply: isHindi ? hi : en,
+      reply: selectedGeneral.en,
+      displayReply: selectedGeneral.en,
+      spokenReply: isHindi ? selectedGeneral.hi : selectedGeneral.en,
       source: 'fallback',
+      intent: 'general_chat',
     };
   };
 
   // If no API key configured or placeholder present, immediately use fallback
   if (!apiKey || apiKey.includes('your_') || apiKey.trim() === '') {
     console.warn('[NeuroNova Voice Companion] OPENROUTER_API_KEY missing. Using contextual deterministic fallback.');
+    return createFallbackReply();
+  }
+
+  // For story, joke, wisdom, and emotional-support requests always use the rich
+  // deterministic handlers — they give warmer, more accurate responses than the LLM
+  // and they never accidentally add a music action.
+  const qLowerPre = q.toLowerCase();
+  const isDeterministicIntent =
+    qLowerPre.includes('story') || qLowerPre.includes('kahani') || qLowerPre.includes('katha') ||
+    qLowerPre.includes('tale') || qLowerPre.includes('kissa') ||
+    qLowerPre.includes('joke') || qLowerPre.includes('chutkula') || qLowerPre.includes('funny') ||
+    qLowerPre.includes('laugh') || qLowerPre.includes('hasao') ||
+    qLowerPre.includes('quote') || qLowerPre.includes('suvichar') || qLowerPre.includes('wisdom') ||
+    qLowerPre.includes('thought') || qLowerPre.includes('anmol') || qLowerPre.includes('vachan') ||
+    qLowerPre.includes('lonely') || qLowerPre.includes('sad') || qLowerPre.includes('scared') ||
+    qLowerPre.includes('anxious') || qLowerPre.includes('worried') || qLowerPre.includes('tired') ||
+    qLowerPre.includes('udaas') || qLowerPre.includes('akelapan') || qLowerPre.includes('pareshan');
+
+  if (isDeterministicIntent) {
     return createFallbackReply();
   }
 
@@ -422,19 +752,19 @@ Respond with the JSON object.${isHindi ? ' Remember: displayReply MUST be Englis
           `I am right here beside you, ${userName}. Everything is calm and well.`;
         const spokenText = parsed.spokenReply || parsed.reply || englishDisplay;
 
-        let action: { label: string; url: string; icon: 'music' | 'game' } | null = null;
-        const qLower = q.toLowerCase();
-        const translatedLower = (parsed.translatedQuestion || '').toLowerCase();
-        const askedForMusic =
-          parsed.suggestedApp === 'music' ||
-          /\b(play|music|song|songs|track|tracks|gaana|gana|geet|sangeet|bhajan|bhajans|aarti|arti|kirtan|dhun|bajao|chalao|lagao|sunao|sunna)\b/i.test(qLower) ||
-          /\b(play|music|song|songs|track|listen to|bhajan|aarti|melody|tune)\b/i.test(translatedLower);
+        // Only open Neuromusic when the user EXPLICITLY asked to play music/a song.
+        // Require BOTH a play-verb AND a music noun so that story/game/general queries never fire this.
+        const hasPlayVerb = /\b(play|bajao|chalao|lagao|sunao|baja\s*do|chala\s*do|laga\s*do)\b/i.test(qLower);
+        const hasMusicNoun = /\b(music|song|songs|gaana|gana|geet|sangeet|bhajan|bhajans|aarti|arti|kirtan|dhun|track|tracks|melody|tune)\b/i.test(qLower);
+        // LLM may suggest music only when the user really asked for it
+        const llmSuggestsMusic = parsed.suggestedApp === 'music' && hasPlayVerb && hasMusicNoun;
+        const askedForMusic = llmSuggestsMusic || (hasPlayVerb && hasMusicNoun);
 
         const askedForGame =
-          parsed.suggestedApp === 'games' ||
           parsed.suggestedApp === 'game' ||
-          /\b(game|games|puzzle|khel|khelna)\b/i.test(qLower) ||
-          /\b(game|games|puzzle)\b/i.test(translatedLower);
+          parsed.suggestedApp === 'games' ||
+          /\b(game|games|puzzle|khel|khelna)\b/i.test(qLower);
+
 
         if (askedForMusic) {
           // Extract specific song/bhajan name from translated question or raw input, stripping parentheticals

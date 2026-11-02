@@ -54,7 +54,9 @@ export function initSocketServer(httpServer: HttpServer, allowedOrigins: string[
 
       // Deliver incoming call to direct recipient room AND role:caregiver broadcast room
       io.to(`user:${data.receiverId}`).emit('call:incoming', incomingPayload);
+      io.to(`user:${data.receiverId}`).emit('caregiver:call:incoming', incomingPayload);
       io.to('role:caregiver').emit('call:incoming', incomingPayload);
+      io.to('role:caregiver').emit('caregiver:call:incoming', incomingPayload);
 
       // Create persistent notification and push real-time notification alert
       const linked = getPatientLinkedCaregivers(data.callerId);
@@ -69,6 +71,10 @@ export function initSocketServer(httpServer: HttpServer, allowedOrigins: string[
       }
 
       recipientCgIds.forEach((cgId: string) => {
+        // Broadcast incoming call event directly to every linked caregiver room
+        io.to(`user:${cgId}`).emit('call:incoming', incomingPayload);
+        io.to(`user:${cgId}`).emit('caregiver:call:incoming', incomingPayload);
+
         try {
           createNotification({
             recipientId: cgId,
@@ -83,8 +89,11 @@ export function initSocketServer(httpServer: HttpServer, allowedOrigins: string[
             title: `Incoming Call from ${data.callerName || 'Patient'}`,
             message: `${data.callerName || 'Patient'} is calling you now!`,
             relatedEntityId: data.callId,
+            callId: data.callId,
             callerId: data.callerId,
             callerName: data.callerName,
+            patientId: data.callerId,
+            patientName: data.callerName,
             timestamp: new Date().toISOString(),
           });
         } catch (notifErr) {
@@ -94,16 +103,18 @@ export function initSocketServer(httpServer: HttpServer, allowedOrigins: string[
     });
 
     // WebRTC Signaling: Accept call
-    socket.on('call:accept', (data: { callId: string; peerId: string; receiverId: string }) => {
-      console.log(`[Socket] Call ${data.callId} accepted by ${data.receiverId}`);
-      io.to(`user:${data.peerId}`).emit('call:accepted', data);
+    socket.on('call:accept', (data: { callId: string; peerId: string; callerId?: string; receiverId: string; receiverName?: string }) => {
+      console.log(`[Socket] Call ${data.callId} accepted by ${data.receiverId} (${data.receiverName || 'Caregiver'})`);
+      const targetId = data.callerId || data.peerId;
+      io.to(`user:${targetId}`).emit('call:accepted', data);
       socket.to('role:caregiver').emit('call:handled', { callId: data.callId, handledBy: data.receiverId, status: 'accepted' });
     });
 
     // WebRTC Signaling: Reject call
-    socket.on('call:reject', (data: { callId: string; peerId: string; reason?: string }) => {
+    socket.on('call:reject', (data: { callId: string; peerId: string; callerId?: string; reason?: string }) => {
       console.log(`[Socket] Call ${data.callId} rejected`);
-      io.to(`user:${data.peerId}`).emit('call:rejected', data);
+      const targetId = data.callerId || data.peerId;
+      io.to(`user:${targetId}`).emit('call:rejected', data);
       socket.to('role:caregiver').emit('call:handled', { callId: data.callId, status: 'rejected' });
     });
 
@@ -117,12 +128,16 @@ export function initSocketServer(httpServer: HttpServer, allowedOrigins: string[
     // WebRTC Signaling: Peer signal (offer, answer, ICE candidates)
     socket.on('call:signal', (data: { peerId: string; signal: any; callId?: string }) => {
       const senderId = socket.data.userId || data.peerId;
-      io.to(`user:${data.peerId}`).emit('call:signal', {
+      const signalPayload = {
         senderId,
         peerId: socket.data.userId,
         signal: data.signal,
         callId: data.callId,
-      });
+      };
+      io.to(`user:${data.peerId}`).emit('call:signal', signalPayload);
+      if (data.peerId === 'user_caregiver' || data.peerId === 'default-caregiver') {
+        io.to('role:caregiver').emit('call:signal', signalPayload);
+      }
     });
 
     // Disconnect handling

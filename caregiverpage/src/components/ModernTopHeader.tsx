@@ -194,7 +194,16 @@ export const ModernTopHeader: React.FC<ModernTopHeaderProps> = ({
         },
         ...prev,
       ]);
-      if (data.type === 'HEALTH_WORKER_ACCESS_REQUEST' || data.type === 'CALL') {
+      if (data.type === 'CALL') {
+        window.dispatchEvent(new CustomEvent('neuronova:incoming_call', {
+          detail: {
+            callId: data.callId || data.relatedEntityId || `call_${Date.now()}`,
+            callerId: data.callerId || data.patientId || 'patient',
+            callerName: data.callerName || data.patientName || 'Patient',
+            hasVideo: false,
+          }
+        }));
+      } else if (data.type === 'HEALTH_WORKER_ACCESS_REQUEST') {
         setIsNotificationOpen(true);
       }
     };

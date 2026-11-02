@@ -39,6 +39,64 @@
 .animate-voice-bar-5 { animation: voice-wave 0.9s ease-in-out infinite 0.25s; }
 .animate-voice-bar-6 { animation: voice-wave 1.3s ease-in-out infinite 0.35s; }
 
+/* ─── Fluid Glowing Voice Orb Animations ─── */
+@keyframes fluid-blob-1 {
+  0% {
+    transform: rotate(0deg) scale(1);
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+  }
+  33% {
+    transform: rotate(120deg) scale(1.12);
+    border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%;
+  }
+  66% {
+    transform: rotate(240deg) scale(0.94);
+    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+  }
+}
+
+@keyframes fluid-blob-2 {
+  0% {
+    transform: rotate(360deg) scale(1.05);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  50% {
+    transform: rotate(180deg) scale(0.92);
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+  100% {
+    transform: rotate(0deg) scale(1.05);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+}
+
+@keyframes orb-ambient-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+.animate-fluid-blob-1 {
+  animation: fluid-blob-1 14s infinite linear;
+}
+
+.animate-fluid-blob-2 {
+  animation: fluid-blob-2 10s infinite linear;
+}
+
+.animate-orb-glow {
+  animation: orb-ambient-glow 4s ease-in-out infinite;
+}
+
 /* ─── Page Entrance Animations ─────────────────────────────────────────────
    Three gentle motions used across the home-screen stagger sequence:
      .reveal-up    — slide up from 18px below  + fade   (most sections)

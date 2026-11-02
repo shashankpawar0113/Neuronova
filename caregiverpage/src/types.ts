@@ -148,3 +148,30 @@ export interface PatientOverview {
     todayCount: number;
   };
 }
+
+export type MedicalReportCategory =
+  | 'lab_test'
+  | 'imaging_scan'
+  | 'prescription'
+  | 'doctor_note'
+  | 'discharge_summary'
+  | 'other';
+
+export interface MedicalReport {
+  id: string;
+  patientId: string;
+  caregiverId: string;
+  title: string;
+  category: MedicalReportCategory | string;
+  fileName: string;
+  storedFilename: string;
+  fileType: string;
+  fileSize: number;
+  reportDate: string;
+  doctorName?: string;
+  hospitalClinic?: string;
+  notes?: string;
+  createdAt: string;
+  viewUrl: string;
+  downloadUrl: string;
+}

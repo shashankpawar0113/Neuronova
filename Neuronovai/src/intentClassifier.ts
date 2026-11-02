@@ -375,6 +375,12 @@ export function classifyVoiceIntent(input: string, requestedLang?: string): Clas
     if (match) {
       let candidate = (match[1] || '').trim();
       candidate = candidate.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+
+      // If the user asked to hear a story, joke, or poem, do NOT treat as music
+      if (/\b(kahani|story|katha|kissa|chutkula|joke|kavita|poem|shayari|doha)\b/i.test(raw) || /(?:कहानी|कथा|किस्सा|चुटकुला|कविता|दोहा)/i.test(raw)) {
+        continue;
+      }
+
       if (!candidate || GENERIC_HINDI_MUSIC_TERMS.has(candidate) || GENERIC_HINDI_MUSIC_TERMS.has(candidate.toLowerCase())) {
         return { type: 'PLAY_MUSIC', primaryIntent: 'PLAY_MUSIC', originalText: raw, isHindi, isHinglish, language };
       }
@@ -431,9 +437,15 @@ export function classifyVoiceIntent(input: string, requestedLang?: string): Clas
     }
   }
 
-  if (/play/i.test(lower) && (lower.includes('music') || lower.includes('song') || lower.includes('melody'))) {
+  // Catch-all: only fire if it's a clear imperative command starting with "play"
+  // e.g. "play music" — NOT "I played music" or "what games can I play"
+  if (
+    /^play\b/i.test(cleanLower) &&
+    (cleanLower.includes('music') || cleanLower.includes('song') || cleanLower.includes('melody'))
+  ) {
     return { type: 'PLAY_MUSIC', primaryIntent: 'PLAY_MUSIC', originalText: raw, isHindi, isHinglish, language };
   }
+
 
   return {
     type: 'open_ended',

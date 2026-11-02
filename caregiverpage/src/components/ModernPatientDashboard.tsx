@@ -18,11 +18,13 @@ import {
   Calendar,
   Flame,
   Headphones,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import { PatientOverview, LinkedPatient } from '../types';
 import { NEUROMUSIC_URL, NEUROGAMES_URL, BACKEND_URL } from '../config/urls';
 import { UnlinkConfirmationModal } from './UnlinkConfirmationModal';
+import { MedicalReportsVault } from './MedicalReportsVault';
 
 interface ModernPatientDashboardProps {
   overview: PatientOverview;
@@ -55,7 +57,7 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
 }) => {
   const { patient, cognition, music, today, aiCognitiveAnalysis } = overview;
 
-  const [activeActivityTab, setActiveActivityTab] = useState<'games' | 'music' | 'routine' | 'voice'>('games');
+  const [activeActivityTab, setActiveActivityTab] = useState<'games' | 'music' | 'routine' | 'voice' | 'reports'>('games');
   const [showAIPanel, setShowAIPanel] = useState(false);
   
   // "More Details" states for Brain Games and Music
@@ -75,6 +77,8 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
       setActiveActivityTab('music');
     } else if (activeSidebarTab === 'voice') {
       setActiveActivityTab('voice');
+    } else if (activeSidebarTab === 'reports') {
+      setActiveActivityTab('reports');
     } else if (activeSidebarTab === 'routine' || activeSidebarTab === 'schedule') {
       setActiveActivityTab('routine');
     } else if (activeSidebarTab === 'analytics' || activeSidebarTab === 'games' || activeSidebarTab === 'dashboard') {
@@ -601,12 +605,13 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-4 mb-6">
           
           {/* Main Tabs */}
-          <div className="flex items-center gap-5 overflow-x-auto custom-scrollbar">
+          <div className="flex items-center gap-5 overflow-x-auto no-scrollbar">
             {[
               { id: 'games', label: 'Brain Games Telemetry', icon: Gamepad2 },
               { id: 'music', label: 'Music Analytics', icon: Music },
               { id: 'routine', label: 'Routine Stream', icon: Calendar },
               { id: 'voice', label: 'Voice Transcripts', icon: MessageSquare },
+              { id: 'reports', label: 'Medical Reports & Vault', icon: FileText },
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeActivityTab === tab.id;
@@ -875,7 +880,7 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
             )}
 
             {/* Game Domain Filters */}
-            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
               {[
                 { id: 'all', label: 'All Sessions' },
                 { id: 'memoryMatch', label: 'Memory Match' },
@@ -1461,6 +1466,19 @@ export const ModernPatientDashboard: React.FC<ModernPatientDashboardProps> = ({
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 5: MEDICAL REPORTS & VAULT */}
+        {/* =================================================================== */}
+        {activeActivityTab === 'reports' && (
+          <div className="animate-fadeIn">
+            <MedicalReportsVault
+              patientId={patientId || patient.id || patientInfo.patientId}
+              patientName={patient.name || patientInfo.patientName || 'Loved One'}
+              caregiverId={caregiverId}
+            />
           </div>
         )}
 

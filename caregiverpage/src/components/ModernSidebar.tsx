@@ -11,7 +11,8 @@ import {
   User,
   ExternalLink,
   ChevronRight,
-  Music
+  Music,
+  FileText
 } from 'lucide-react';
 import { AUTHPAGE_URL, HOMEPAGE_URL } from '../config/urls';
 
@@ -63,6 +64,7 @@ export const ModernSidebar: React.FC<ModernSidebarProps> = ({
     { id: 'music', icon: Music, label: 'Music Analytics', desc: 'Last played, liked & history' },
     { id: 'routine', icon: Calendar, label: 'Routine Stream', desc: 'Daily milestones & adherence' },
     { id: 'voice', icon: MessageSquare, label: 'Voice Transcripts', desc: 'Assistant conversation logs' },
+    { id: 'reports', icon: FileText, label: 'Medical Reports & Vault', desc: 'Secure medical reports & records' },
     { id: 'patients', icon: Users, label: 'Linked Loved Ones', desc: 'Manage linked patients' },
     { id: 'network', icon: Globe, label: 'Elder Sanctuary Portal', desc: 'Open patient homepage' },
     { id: 'settings', icon: SlidersHorizontal, label: 'Caregiver Settings', desc: 'Alerts & preferences' },

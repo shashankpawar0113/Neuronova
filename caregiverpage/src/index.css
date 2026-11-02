@@ -51,11 +51,20 @@
   background: #94A3B8;
 }
 
-/* Hide scrollbar completely for sidebar rails while keeping scroll capability */
+/* Hide scrollbar completely while keeping scroll capability */
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
 }
 .no-scrollbar {
   -ms-overflow-style: none !important;
@@ -92,4 +101,14 @@
   background-color: #FFFFFF;
   border-radius: 9999px;
 }
+
+@keyframes toast-countdown {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+.toast-countdown {
+  animation: toast-countdown 5s linear forwards;
+}
+
 

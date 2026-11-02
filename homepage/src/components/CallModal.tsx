@@ -38,10 +38,12 @@ export const CallModal: React.FC<CallModalProps> = ({
   const [showEmergencyFallback, setShowEmergencyFallback] = useState(isEmergencyCall);
 
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const durationTimerRef = useRef<any>(null);
   const timeoutTimerRef = useRef<any>(null);
   const callIdRef = useRef<string>(`call_${Date.now()}`);
+  const remotePeerIdRef = useRef<string>('');
   const dialToneIntervalRef = useRef<any>(null);
 
   useEffect(() => {
@@ -153,10 +155,25 @@ export const CallModal: React.FC<CallModalProps> = ({
 
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
+      // Handle remote incoming audio stream from caregiver
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          if (!remoteAudioRef.current) {
+            const audio = new Audio();
+            audio.autoplay = true;
+            remoteAudioRef.current = audio;
+          }
+          remoteAudioRef.current.srcObject = event.streams[0];
+          remoteAudioRef.current.play().catch(() => {});
+        }
+      };
+
+      remotePeerIdRef.current = effectiveCaregiverId;
+
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           socket.emit('call:signal', {
-            peerId: effectiveCaregiverId,
+            peerId: remotePeerIdRef.current || effectiveCaregiverId,
             signal: { candidate: event.candidate },
             callId: callIdRef.current,
           });
@@ -173,17 +190,20 @@ export const CallModal: React.FC<CallModalProps> = ({
       });
 
       // Listen for events
-      socket.on('call:accepted', async (_data: any) => {
+      socket.on('call:accepted', async (data: any) => {
         if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
         stopDialTone(); // 🎵 Stop ring — call connected
         setCallStatus('CONNECTED');
         startDurationCounter();
 
+        const respondingPeerId = data?.receiverId || effectiveCaregiverId;
+        remotePeerIdRef.current = respondingPeerId;
+
         // Create WebRTC Offer
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit('call:signal', {
-          peerId: effectiveCaregiverId,
+          peerId: respondingPeerId,
           signal: { sdp: offer },
           callId: callIdRef.current,
         });
@@ -237,7 +257,7 @@ export const CallModal: React.FC<CallModalProps> = ({
     const socket = getSocket(patientId, 'patient', patientName);
     socket.emit('call:end', {
       callId: callIdRef.current,
-      peerId: caregiverId,
+      peerId: remotePeerIdRef.current || effectiveCaregiverId,
     });
     setCallStatus('ENDED');
     cleanupCall();
@@ -251,6 +271,10 @@ export const CallModal: React.FC<CallModalProps> = ({
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current = null;
     }
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();

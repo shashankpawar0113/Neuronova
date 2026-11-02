@@ -486,8 +486,9 @@ const OFF_TOPIC_DESC_MARKERS = [
  */
 export function cleanSearchQuery(q: string): string {
   return (q || '')
+    // Strip generic playback verbs and filler words — but NOT "by" so artist stays intact
     .replace(/\b(play|song|songs|gaana|geet|music|track|tracks|audio|video)\b/gi, ' ')
-    .replace(/\b(from the movie|from movie|from the film|from film|from|by|of|ki|ka|ke)\b/gi, ' ')
+    .replace(/\b(from the movie|from movie|from the film|from film|from|of|ki|ka|ke)\b/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -847,14 +848,23 @@ export function rankAndFilterSearchResults(
       }
     }
 
-    // - Title match precision: boosts titles containing user song query words
-    const cleanSearchWords = cleanQ.split(/\s+/).filter((w) => w.length > 2);
+    // - Title match precision: strong per-word boost so the exact requested song
+    //   reliably wins over other songs by the same artist (e.g. "Shady" beats "CEO")
+    const cleanSearchWords = cleanQ.split(/\s+/).filter((w) => w.length > 1);
     let matchedWords = 0;
+    let allWordsMatched = true;
     for (const word of cleanSearchWords) {
-      if (titleLower.includes(word)) matchedWords++;
+      if (titleLower.includes(word)) {
+        matchedWords++;
+      } else {
+        allWordsMatched = false;
+      }
     }
     if (cleanSearchWords.length > 0) {
-      score += Math.round((matchedWords / cleanSearchWords.length) * 60);
+      // Per-word match: +400 each (so 2-word query like "shady cheema" = up to +800)
+      score += matchedWords * 400;
+      // Extra bonus when every query word is present in the title
+      if (allWordsMatched) score += 300;
     }
 
     const vidId = item.id?.videoId || item.id || '';

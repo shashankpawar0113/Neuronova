@@ -71,6 +71,10 @@ import {
   getHealthWorkerAccessStatus,
   respondToHealthWorkerAccessRequest,
   markAllNotificationsRead,
+  saveMedicalReport,
+  getPatientMedicalReports,
+  getMedicalReportById,
+  deleteMedicalReport,
 } from './userDataService.js';
 import { getDailyMotivationalMessage } from './dailyMotivationService.js';
 import { CORS_ORIGINS, BACKEND_URL, NEUROMUSIC_URL, NEUROGAMES_URL, PORT } from './config/urls.js';
@@ -96,6 +100,12 @@ startMissedTaskScheduler(60000);
 const audioUploadsDir = path.resolve(process.cwd(), 'data', 'audio', 'voice-messages');
 if (!fs.existsSync(audioUploadsDir)) {
   fs.mkdirSync(audioUploadsDir, { recursive: true });
+}
+
+// Ensure patient medical reports directory exists
+const reportsUploadsDir = path.resolve(process.cwd(), 'data', 'medical-reports');
+if (!fs.existsSync(reportsUploadsDir)) {
+  fs.mkdirSync(reportsUploadsDir, { recursive: true });
 }
 
 // Enable CORS for frontend applications
@@ -2162,6 +2172,196 @@ app.get('/api/caregiver/:caregiverId/concerns', (req: Request, res: Response) =>
     res.json({ success: true, concerns: allConcerns });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch caregiver concerns' });
+  }
+});
+
+// ── Medical Reports Vault API ──────────────────────────────────────────────
+
+const getReportMimeType = (filename: string, fallback: string = 'application/octet-stream') => {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.pdf': return 'application/pdf';
+    case '.jpg':
+    case '.jpeg': return 'image/jpeg';
+    case '.png': return 'image/png';
+    case '.webp': return 'image/webp';
+    case '.gif': return 'image/gif';
+    case '.svg': return 'image/svg+xml';
+    case '.txt': return 'text/plain';
+    case '.doc': return 'application/msword';
+    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    default: return fallback;
+  }
+};
+
+app.post('/api/caregiver/:caregiverId/patient/:patientId/reports', (req: Request, res: Response) => {
+  try {
+    const caregiverId = getParam(req.params.caregiverId);
+    const patientId = getParam(req.params.patientId);
+    const {
+      title,
+      category,
+      reportDate,
+      doctorName,
+      hospitalClinic,
+      notes,
+      fileName,
+      fileType,
+      fileBase64,
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Report title is required' });
+    }
+
+    if (!fileName) {
+      return res.status(400).json({ error: 'File name is required' });
+    }
+
+    const reportId = `rep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const originalExt = path.extname(fileName) || '.pdf';
+    const storedFilename = `${reportId}${originalExt}`;
+    const filePath = path.join(reportsUploadsDir, storedFilename);
+
+    let fileSize = 0;
+    if (fileBase64) {
+      const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(cleanBase64, 'base64');
+      fileSize = buffer.length;
+      fs.writeFileSync(filePath, buffer);
+    } else {
+      fs.writeFileSync(filePath, Buffer.from(''));
+    }
+
+    const detectedMime = fileType || getReportMimeType(fileName);
+
+    const saved = saveMedicalReport({
+      id: reportId,
+      patientId,
+      caregiverId,
+      title: title.trim(),
+      category: category || 'other',
+      fileName,
+      storedFilename,
+      fileType: detectedMime,
+      fileSize,
+      reportDate,
+      doctorName: doctorName ? String(doctorName).trim() : undefined,
+      hospitalClinic: hospitalClinic ? String(hospitalClinic).trim() : undefined,
+      notes: notes ? String(notes).trim() : undefined,
+    });
+
+    const baseUrl = BACKEND_URL || `http://localhost:${PORT}`;
+    const reportResponse = {
+      ...saved,
+      viewUrl: `${baseUrl}/api/reports/${storedFilename}/view`,
+      downloadUrl: `${baseUrl}/api/reports/${storedFilename}/download`,
+    };
+
+    const socketIO = getSocketIO();
+    if (socketIO) {
+      socketIO.to('role:caregiver').emit('patient:report:uploaded', reportResponse);
+    }
+
+    res.status(201).json({
+      success: true,
+      report: reportResponse,
+    });
+  } catch (err: any) {
+    console.error('[Medical Reports API] Error saving report:', err);
+    res.status(500).json({ error: err.message || 'Failed to save medical report' });
+  }
+});
+
+app.get('/api/caregiver/:caregiverId/patient/:patientId/reports', (req: Request, res: Response) => {
+  try {
+    const patientId = getParam(req.params.patientId);
+    const category = req.query.category ? String(req.query.category) : undefined;
+    const reports = getPatientMedicalReports(patientId, category);
+    const baseUrl = BACKEND_URL || `http://localhost:${PORT}`;
+
+    const formatted = reports.map(r => ({
+      ...r,
+      viewUrl: `${baseUrl}/api/reports/${r.storedFilename}/view`,
+      downloadUrl: `${baseUrl}/api/reports/${r.storedFilename}/download`,
+    }));
+
+    res.json({
+      success: true,
+      reports: formatted,
+    });
+  } catch (err) {
+    console.error('[Medical Reports API] Error fetching reports:', err);
+    res.status(500).json({ error: 'Failed to fetch medical reports' });
+  }
+});
+
+app.get('/api/reports/:filename/view', (req: Request, res: Response) => {
+  try {
+    const filename = path.basename(getParam(req.params.filename));
+    const filePath = path.join(reportsUploadsDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Report file not found' });
+    }
+
+    const mimeType = getReportMimeType(filename);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('[Medical Reports API] Error viewing report:', err);
+    res.status(500).json({ error: 'Failed to view report file' });
+  }
+});
+
+app.get('/api/reports/:filename/download', (req: Request, res: Response) => {
+  try {
+    const filename = path.basename(getParam(req.params.filename));
+    const filePath = path.join(reportsUploadsDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Report file not found' });
+    }
+
+    const reportId = filename.split('.')[0];
+    const report = getMedicalReportById(reportId);
+    const downloadName = report ? report.fileName : filename;
+
+    res.download(filePath, downloadName, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: 'Download failed' });
+      }
+    });
+  } catch (err) {
+    console.error('[Medical Reports API] Error downloading report:', err);
+    res.status(500).json({ error: 'Failed to download report file' });
+  }
+});
+
+app.delete('/api/caregiver/:caregiverId/patient/:patientId/reports/:reportId', (req: Request, res: Response) => {
+  try {
+    const patientId = getParam(req.params.patientId);
+    const reportId = getParam(req.params.reportId);
+
+    const result = deleteMedicalReport(reportId, patientId);
+    if (!result.success) {
+      return res.status(404).json({ error: 'Report not found or not authorized' });
+    }
+
+    if (result.storedFilename) {
+      const filePath = path.join(reportsUploadsDir, result.storedFilename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (_) {}
+      }
+    }
+
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (err) {
+    console.error('[Medical Reports API] Error deleting report:', err);
+    res.status(500).json({ error: 'Failed to delete report' });
   }
 });
 

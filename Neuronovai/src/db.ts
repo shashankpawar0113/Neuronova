@@ -267,6 +267,23 @@ export function initDatabase() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_liked_user ON liked_songs(user_id);
+    CREATE TABLE IF NOT EXISTS medical_reports (
+      id TEXT PRIMARY KEY,
+      patient_id TEXT NOT NULL,
+      caregiver_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      file_name TEXT NOT NULL,
+      stored_filename TEXT NOT NULL,
+      file_type TEXT NOT NULL,
+      file_size INTEGER NOT NULL DEFAULT 0,
+      report_date TEXT,
+      doctor_name TEXT,
+      hospital_clinic TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_games_user ON game_results(user_id);
     CREATE INDEX IF NOT EXISTS idx_routine_user_date ON routine_logs(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_playlists_user ON user_playlists(user_id);
@@ -282,6 +299,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_unique_patient_id ON patient_unique_ids(unique_patient_id);
     CREATE INDEX IF NOT EXISTS idx_hw_access_worker ON health_worker_patient_access(worker_id);
     CREATE INDEX IF NOT EXISTS idx_hw_concerns_patient ON health_worker_concerns(patient_id);
+    CREATE INDEX IF NOT EXISTS idx_med_reports_patient ON medical_reports(patient_id);
+    CREATE INDEX IF NOT EXISTS idx_med_reports_caregiver ON medical_reports(caregiver_id);
   `);
 
   try {

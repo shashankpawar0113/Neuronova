@@ -61,6 +61,7 @@ export function checkMissedTasks(): void {
               patientId,
               patientName,
               taskId: t.id,
+              title: t.title,
               taskTitle: t.title,
               taskType: t.type,
               scheduledTime: t.scheduledTime,

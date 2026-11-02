@@ -8,17 +8,26 @@ import {
   CheckCircle2,
   SlidersHorizontal
 } from 'lucide-react';
+import { PatientOverview, LinkedPatient, MedicalReport } from '../types';
+import { BACKEND_URL } from '../config/urls';
+import { downloadPatientAnalyticalReport } from '../services/analyticalReportGenerator';
 
 interface CaregiverSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   caregiverName: string;
+  caregiverId?: string;
+  patientInfo?: LinkedPatient | null;
+  overview?: PatientOverview | null;
 }
 
 export const CaregiverSettingsModal: React.FC<CaregiverSettingsModalProps> = ({
   isOpen,
   onClose,
   caregiverName,
+  caregiverId = 'user_rahul_caregiver',
+  patientInfo = null,
+  overview = null,
 }) => {
   const [medAlerts, setMedAlerts] = useState(true);
   const [nightAlerts, setNightAlerts] = useState(true);
@@ -27,6 +36,7 @@ export const CaregiverSettingsModal: React.FC<CaregiverSettingsModalProps> = ({
   const [emergencyPhone, setEmergencyPhone] = useState('+91 98765 43210');
   const [doctorPhone, setDoctorPhone] = useState('+91 91234 56789');
   const [isSaved, setIsSaved] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   if (!isOpen) return null;
 
@@ -38,27 +48,36 @@ export const CaregiverSettingsModal: React.FC<CaregiverSettingsModalProps> = ({
     }, 1200);
   };
 
-  const handleExportData = () => {
-    const data = {
-      caregiver: caregiverName,
-      exportedAt: new Date().toISOString(),
-      platform: 'NeuroNova Clinical Caregiver Command Hub',
-      settings: {
-        medAlerts,
-        nightAlerts,
-        declineAlerts,
-        voiceLang,
-        emergencyPhone,
-        doctorPhone,
-      },
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `neuronova-caregiver-preferences-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadAnalyticalReport = async (format: 'html' | 'json' = 'html') => {
+    setIsGeneratingReport(true);
+    try {
+      const patientId = overview?.patient?.id || patientInfo?.patientId;
+      let medicalReports: MedicalReport[] = [];
+
+      if (patientId && caregiverId) {
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/api/caregiver/${encodeURIComponent(caregiverId)}/patient/${encodeURIComponent(patientId)}/reports`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            medicalReports = data.reports || [];
+          }
+        } catch (_) {}
+      }
+
+      downloadPatientAnalyticalReport({
+        patientInfo,
+        overview,
+        caregiverName,
+        caregiverId,
+        medicalReports,
+      }, format);
+    } catch (err) {
+      console.error('Failed to generate analytical report:', err);
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   return (
@@ -212,19 +231,30 @@ export const CaregiverSettingsModal: React.FC<CaregiverSettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Section 4: Export Clinical Data */}
-          <div className="p-4 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-[#111625] block">Export Clinical Audit Data</span>
-              <span className="text-[11px] text-stone-500">Download formatted JSON report for physician consultation</span>
+          {/* Section 4: Download Full Analytical Report of the Patient */}
+          <div className="p-4 rounded-2xl bg-stone-100 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-[#111625] block">
+                Download Full Analytical Report of the Patient
+              </span>
+              <span className="text-[11px] text-stone-500 block mt-0.5">
+                {patientInfo?.patientName || overview?.patient?.name 
+                  ? `Comprehensive clinical telemetry, cognitive stability, routine & AI report for ${patientInfo?.patientName || overview?.patient?.name}`
+                  : 'Comprehensive clinical telemetry, cognitive stability & routine vitals report'}
+              </span>
             </div>
-            <button
-              onClick={handleExportData}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-stone-200 border border-stone-300 text-xs font-bold text-[#111625] flex items-center space-x-1.5 transition-colors cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
-            </button>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleDownloadAnalyticalReport('html')}
+                disabled={isGeneratingReport}
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-stone-200 border border-stone-300 text-xs font-bold text-[#111625] flex items-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                title="Download formatted printable clinical dossier (PDF/HTML)"
+              >
+                <Download className={`w-3.5 h-3.5 ${isGeneratingReport ? 'animate-bounce' : ''}`} />
+                <span>{isGeneratingReport ? 'Generating...' : 'Download Report'}</span>
+              </button>
+            </div>
           </div>
 
         </div>
