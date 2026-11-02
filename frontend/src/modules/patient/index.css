@@ -1,0 +1,342 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  body {
+    background-color: #FAF7F2;
+    background-image: url('/meadow-bg.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: #1A202C;
+    font-family: var(--font-body);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Accessible focus indicators for elderly seniors */
+  button:focus-visible, a:focus-visible {
+    outline: 3px solid #1E4D2B;
+    outline-offset: 3px;
+  }
+}
+
+/* ─── Waveform animation for listening state ─── */
+@keyframes voice-wave {
+  0%, 100% { height: 14px; }
+  50%       { height: 48px; }
+}
+.animate-voice-bar-1 { animation: voice-wave 1s   ease-in-out infinite 0.1s;  }
+.animate-voice-bar-2 { animation: voice-wave 1.2s ease-in-out infinite 0.3s;  }
+.animate-voice-bar-3 { animation: voice-wave 0.8s ease-in-out infinite 0.15s; }
+.animate-voice-bar-4 { animation: voice-wave 1.1s ease-in-out infinite 0.4s;  }
+.animate-voice-bar-5 { animation: voice-wave 0.9s ease-in-out infinite 0.25s; }
+.animate-voice-bar-6 { animation: voice-wave 1.3s ease-in-out infinite 0.35s; }
+
+/* ─── Fluid Glowing Voice Orb Animations ─── */
+@keyframes fluid-blob-1 {
+  0% {
+    transform: rotate(0deg) scale(1);
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+  }
+  33% {
+    transform: rotate(120deg) scale(1.12);
+    border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%;
+  }
+  66% {
+    transform: rotate(240deg) scale(0.94);
+    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+  }
+}
+
+@keyframes fluid-blob-2 {
+  0% {
+    transform: rotate(360deg) scale(1.05);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+  50% {
+    transform: rotate(180deg) scale(0.92);
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+  }
+  100% {
+    transform: rotate(0deg) scale(1.05);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+  }
+}
+
+@keyframes orb-ambient-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+.animate-fluid-blob-1 {
+  animation: fluid-blob-1 14s infinite linear;
+}
+
+.animate-fluid-blob-2 {
+  animation: fluid-blob-2 10s infinite linear;
+}
+
+.animate-orb-glow {
+  animation: orb-ambient-glow 4s ease-in-out infinite;
+}
+
+/* ─── Page Entrance Animations ─────────────────────────────────────────────
+   Three gentle motions used across the home-screen stagger sequence:
+     .reveal-up    — slide up from 18px below  + fade   (most sections)
+     .reveal-down  — slide down from 14px above + fade   (greeting header)
+     .reveal-left  — slide in from 20px right   + fade   (top-right cluster)
+
+   Each element starts hidden (opacity:0) and animates to resting position.
+   The delay is set per-element via the custom property --reveal-delay.
+
+   prefers-reduced-motion: skip every animation, show everything instantly.
+─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes reveal-down {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+@keyframes reveal-left {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+/* Base reveal class — shared animation settings */
+.reveal-up,
+.reveal-down,
+.reveal-left {
+  opacity: 0;                          /* hidden before animation fires  */
+  animation-duration: 600ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); /* ease-out */
+  animation-fill-mode: both;           /* hold end-state after finishing */
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal-up   { animation-name: reveal-up;   }
+.reveal-down { animation-name: reveal-down; }
+.reveal-left { animation-name: reveal-left; }
+
+/* Card variants — slightly longer + softer for the hero action cards */
+.reveal-up-card {
+  opacity: 0;
+  animation-name: reveal-up;
+  animation-duration: 680ms;
+  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation-fill-mode: both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* Accessibility: honour reduced-motion preference — show everything at once */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-up,
+  .reveal-down,
+  .reveal-left,
+  .reveal-up-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ─── High Contrast Accessibility Mode ────────────────────────────────────────
+   Enhances borders, deepens dark ink, eliminates distracting translucent
+   gradients, and guarantees maximum WCAG AAA readability for senior elders.
+─────────────────────────────────────────────────────────────────────────────── */
+
+html.high-contrast,
+.high-contrast {
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+/* Maintain living background & ensure interactive unblur canvas stays 100% active */
+html.high-contrast body,
+.high-contrast {
+  color: #000000 !important;
+}
+
+/* Ensure unblur canvas operates at full fidelity */
+.high-contrast canvas {
+  opacity: 1 !important;
+}
+
+/* 1. SOLID CARD SURFACES (Keep cards crisp and opaque so text is never compromised) */
+.high-contrast header,
+.high-contrast section,
+.high-contrast article,
+.high-contrast footer,
+.high-contrast .bg-white\/80,
+.high-contrast .bg-white\/85,
+.high-contrast .bg-white\/90,
+.high-contrast .bg-white\/95,
+.high-contrast .bg-\[\#FAF7F2\]\/90,
+.high-contrast .bg-\[\#FAF7F2\]\/60,
+.high-contrast .bg-white\/75 {
+  background-color: #FFFFFF !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 2. ENHANCE BORDERS (Bold, crisp dark boundaries) */
+.high-contrast header,
+.high-contrast section,
+.high-contrast article,
+.high-contrast .rounded-3xl,
+.high-contrast .rounded-2xl {
+  border-color: #0F172A !important;
+  border-width: 2.5px !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12) !important;
+}
+
+.high-contrast .border,
+.high-contrast .border-2,
+.high-contrast [class*="border-\[#E8DFD1\]"],
+.high-contrast [class*="border-cream"],
+.high-contrast [class*="border-slate-"],
+.high-contrast [class*="border-river-"],
+.high-contrast [class*="border-muga-"],
+.high-contrast [class*="border-forest-"],
+.high-contrast [class*="border-terracotta-"] {
+  border-color: #0F172A !important;
+}
+
+/* 3. DEEPEN DARK INK (Pure black & deep slate typography) */
+.high-contrast h1,
+.high-contrast h2,
+.high-contrast h3,
+.high-contrast h4,
+.high-contrast h5,
+.high-contrast h6 {
+  color: #000000 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.high-contrast p,
+.high-contrast span,
+.high-contrast label,
+.high-contrast li {
+  font-weight: 600 !important;
+}
+
+/* Deepen all muted, semi-transparent text */
+.high-contrast [class*="text-[#1A202C]"],
+.high-contrast [class*="text-slate-500"],
+.high-contrast [class*="text-slate-600"],
+.high-contrast [class*="text-slate-700"],
+.high-contrast [class*="text-slate-800"],
+.high-contrast [class*="text-slate-400"] {
+  color: #0F172A !important;
+  opacity: 1 !important;
+}
+
+/* Thematic text colors in high contrast */
+.high-contrast .text-forest-600,
+.high-contrast .text-forest-700,
+.high-contrast .text-forest-800,
+.high-contrast .text-forest-900 {
+  color: #064E3B !important; /* Extra deep forest */
+  font-weight: 800 !important;
+}
+
+.high-contrast .text-river-600,
+.high-contrast .text-river-700,
+.high-contrast .text-river-800,
+.high-contrast .text-river-900 {
+  color: #0C4A6E !important; /* Extra deep river blue */
+  font-weight: 800 !important;
+}
+
+.high-contrast .text-muga-600,
+.high-contrast .text-muga-700,
+.high-contrast .text-muga-800,
+.high-contrast .text-muga-900 {
+  color: #78350F !important; /* Extra deep warm amber */
+  font-weight: 800 !important;
+}
+
+/* Protect white text on colored/dark buttons */
+.high-contrast [class*="text-white"],
+.high-contrast button[class*="bg-forest"] *,
+.high-contrast button[class*="bg-emerald"] *,
+.high-contrast [class*="bg-river-500"] *,
+.high-contrast [class*="bg-forest-600"] * {
+  color: #FFFFFF !important;
+}
+
+/* 4. BUTTONS & INTERACTIVE CONTROLS */
+.high-contrast button {
+  border-width: 2px !important;
+  border-color: #0F172A !important;
+}
+
+/* Primary Action Button (Done / Submit / Confirm) */
+.high-contrast button[class*="bg-forest"],
+.high-contrast button[class*="bg-emerald"] {
+  background-color: #047857 !important;
+  border-color: #022C22 !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 12px rgba(4, 120, 87, 0.3) !important;
+}
+
+/* Secondary / Light Buttons */
+.high-contrast button[class*="bg-cream"],
+.high-contrast button[class*="bg-white"],
+.high-contrast button[class*="bg-slate"] {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+  border-color: #0F172A !important;
+  font-weight: 700 !important;
+}
+
+/* 5. HERO ACTION CARDS IN HIGH CONTRAST */
+.high-contrast button[class*="border-2"] {
+  border-width: 2.5px !important;
+  border-color: #0F172A !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1) !important;
+}
+
+.high-contrast button[class*="border-2"]:hover {
+  border-color: #000000 !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2) !important;
+}
+
+/* Badges / Chips */
+.high-contrast [class*="rounded-full"][class*="border"] {
+  border-width: 2px !important;
+  border-color: #0F172A !important;
+  font-weight: 800 !important;
+}
+
+/* 6. MODALS & POPUPS */
+.high-contrast [role="dialog"],
+.high-contrast .fixed [class*="rounded-3xl"] {
+  border-color: #000000 !important;
+  border-width: 3px !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
+}

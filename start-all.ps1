@@ -1,18 +1,13 @@
-# Start all NeuroNova services
+# Start NeuroNova Unified Platform
 $item = Get-Item $PSScriptRoot
 $root = if ($item.Target) { $item.Target } else { $item.FullName }
 
-Write-Host "Starting all NeuroNova services from $root..." -ForegroundColor Cyan
+Write-Host "Starting NeuroNova Unified Platform from $root..." -ForegroundColor Cyan
 
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neuronovai'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\authpage'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\homepage'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neuromusic'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Neurogames'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\caregiverpage'; npm run dev"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\healthworker'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\backend'; npm run dev"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\frontend'; npm run dev"
 
-Start-Sleep -Seconds 4
-Start-Process "http://localhost:5174/"
+Start-Sleep -Seconds 3
+Start-Process "http://localhost:5173/"
 
-Write-Host "All services started! Auth portal opened at http://localhost:5174/" -ForegroundColor Green
+Write-Host "NeuroNova unified platform running at http://localhost:5173/" -ForegroundColor Green
