@@ -991,14 +991,13 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
         t.title.toLowerCase().includes(q.toLowerCase()) ||
         t.artist.toLowerCase().includes(q.toLowerCase())
     );
-    if (localMatches.length > 0) {
-      setSearchResults(localMatches);
-    }
+    setSearchResults(localMatches);
 
     // 2. Debounced query to YouTube API
     const timer = setTimeout(async () => {
       try {
-        const url = new URL(`${BACKEND_URL}/api/youtube/search`);
+        const baseOrigin = BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
+        const url = new URL(`${BACKEND_URL || ''}/api/youtube/search`, baseOrigin);
         url.searchParams.set('q', q);
         const res = await fetch(url.toString());
         if (res.ok) {
@@ -1008,7 +1007,7 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
           // Retry with song keyword if query had 0 matches
           if (rawTracks.length === 0 && !/\b(song|songs|gaana|music|audio)\b/i.test(q)) {
             try {
-              const retryUrl = new URL(`${BACKEND_URL}/api/youtube/search`);
+              const retryUrl = new URL(`${BACKEND_URL || ''}/api/youtube/search`, baseOrigin);
               retryUrl.searchParams.set('q', `${q} song`);
               const retryRes = await fetch(retryUrl.toString());
               if (retryRes.ok) {
@@ -1292,7 +1291,8 @@ export const SessionPlayer: React.FC<SessionPlayerProps> = ({
 
     try {
       setIsFetchingContextualQueue(true);
-      const url = new URL(`${BACKEND_URL}/api/music/contextual-queue`);
+      const baseOrigin = BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
+      const url = new URL(`${BACKEND_URL || ''}/api/music/contextual-queue`, baseOrigin);
       url.searchParams.set('title', track.title);
       if (track.artist && !track.artist.toLowerCase().includes('youtube') && !track.artist.toLowerCase().includes('nostalgia')) {
         url.searchParams.set('artist', track.artist);

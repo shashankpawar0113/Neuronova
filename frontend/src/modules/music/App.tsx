@@ -178,7 +178,8 @@ export const App: React.FC = () => {
     async function loadTracks() {
       try {
         setIsLoadingTracks(true);
-        const url = new URL(`${BACKEND_URL}/api/youtube/search`);
+        const baseOrigin = BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
+        const url = new URL(`${BACKEND_URL || ''}/api/youtube/search`, baseOrigin);
         url.searchParams.set('decade', formativeEra.decade);
         url.searchParams.set('genre', selectedGenre);
 
