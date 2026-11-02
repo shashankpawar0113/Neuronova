@@ -117,37 +117,30 @@ export const GamesHub: React.FC<GamesHubProps> = ({ onSelectGame }) => {
               Neurogames
             </h1>
           </div>
-          <button
-            onClick={() => {
-              const u = encodeURIComponent(session.userId);
-              const n = encodeURIComponent(session.name);
-              const r = encodeURIComponent(session.role);
-              window.location.href = `${HOMEPAGE_URL}/?userId=${u}&name=${n}&role=${r}`;
-            }}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-cream-300 text-forest-800 hover:bg-forest-50 transition-all text-sm font-bold shadow-sm"
-            aria-label="Back to main home screen"
-          >
-            <Home className="w-4 h-4" />
-            <span className="hidden sm:inline">Home</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => performLogout()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 transition-all text-sm font-bold shadow-sm cursor-pointer"
-            title="Sign out of NeuroNova"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => performLogout()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 transition-all text-sm font-bold shadow-sm cursor-pointer"
-            title="Sign out of NeuroNova"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const u = encodeURIComponent(session.userId);
+                const n = encodeURIComponent(session.name);
+                const r = encodeURIComponent(session.role);
+                window.location.href = `${HOMEPAGE_URL}?userId=${u}&name=${n}&role=${r}`;
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-cream-300 text-forest-800 hover:bg-forest-50 transition-all text-sm font-bold shadow-sm cursor-pointer"
+              aria-label="Back to main home screen"
+            >
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Home</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => performLogout()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 transition-all text-sm font-bold shadow-sm cursor-pointer"
+              title="Sign out of NeuroNova"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          </div>
         </div>
       </header>
 

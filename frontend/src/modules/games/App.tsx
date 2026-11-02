@@ -10,7 +10,6 @@ import { SequentialGameSessionController } from './components/SequentialGameSess
 import { GameType } from './types';
 
 // Determine initial view from URL path / query param
-// e.g. / → hub, /?game=vault → vault, /?mode=sequential → sequential
 function getInitialView(): GameType | 'hub' | 'sequential' {
   const params = new URLSearchParams(window.location.search);
   if (params.get('mode') === 'sequential' || params.get('sequential') === 'true') {
@@ -19,9 +18,10 @@ function getInitialView(): GameType | 'hub' | 'sequential' {
   const game = params.get('game');
   if (game === 'vault') return 'vault';
   if (game === 'sequential') return 'sequential';
-  const path = window.location.pathname.replace('/', '').toLowerCase();
-  if (path === 'vault') return 'vault';
-  if (path === 'sequential') return 'sequential';
+  if (game && ['memoryMatch', 'attentionGame', 'sequenceRecall', 'culturalGame', 'dailyRoutineRecall'].includes(game)) {
+    return game as GameType;
+  }
+  if (window.location.pathname.includes('/vault')) return 'vault';
   return 'hub';
 }
 
@@ -30,16 +30,26 @@ const App: React.FC = () => {
 
   const goHub = () => {
     setCurrentView('hub');
-    window.history.replaceState({}, '', '/');
+    const params = new URLSearchParams(window.location.search);
+    params.delete('game');
+    params.delete('mode');
+    params.delete('sequential');
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    window.history.replaceState({}, '', `/games${qs}`);
   };
 
   const selectGame = (id: GameType | 'sequential') => {
     setCurrentView(id as any);
+    const params = new URLSearchParams(window.location.search);
     if (id === 'sequential') {
-      window.history.replaceState({}, '', `/?mode=sequential`);
+      params.set('mode', 'sequential');
+      params.delete('game');
     } else {
-      window.history.replaceState({}, '', `/?game=${id}`);
+      params.set('game', id);
+      params.delete('mode');
     }
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    window.history.replaceState({}, '', `/games${qs}`);
   };
 
   return (

@@ -13,14 +13,22 @@ export const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<AuthApp />} />
         <Route path="/auth" element={<AuthApp />} />
+        <Route path="/auth/*" element={<AuthApp />} />
+        <Route path="/patient" element={<PatientApp />} />
         <Route path="/patient/*" element={<PatientApp />} />
+        <Route path="/home" element={<Navigate to="/patient" replace />} />
         <Route path="/home/*" element={<Navigate to="/patient" replace />} />
+        <Route path="/caregiver" element={<CaregiverApp />} />
         <Route path="/caregiver/*" element={<CaregiverApp />} />
+        <Route path="/music" element={<MusicApp />} />
         <Route path="/music/*" element={<MusicApp />} />
+        <Route path="/games" element={<GamesApp />} />
         <Route path="/games/*" element={<GamesApp />} />
+        <Route path="/vault" element={<GamesApp />} />
         <Route path="/vault/*" element={<GamesApp />} />
+        <Route path="/healthworker" element={<HealthWorkerApp />} />
         <Route path="/healthworker/*" element={<HealthWorkerApp />} />
-        {/* Fallback */}
+        {/* Fallback to landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
