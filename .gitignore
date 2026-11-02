@@ -1,89 +1,43 @@
-# =============================================================================
-# NeuroNova — Root .gitignore
-# =============================================================================
-
-# ─── Secrets & Environment Files ──────────────────────────────────────────────
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*
-# Keep example files (they contain only placeholders, never real keys)
-!.env.example
-
-# ─── Credentials & Private Keys ───────────────────────────────────────────────
-*.pem
-*.key
-*.p12
-*.pfx
-*.jks
-credentials.json
-service-account*.json
-*serviceAccount*.json
-*service_account*.json
-client_secret*.json
-gcloud-service-account*.json
-
-# ─── Database Files (may contain patient PII) ─────────────────────────────────
-*.db
-*.sqlite
-*.sqlite3
-Neuronovai/data/
-
-# ─── Node / npm ───────────────────────────────────────────────────────────────
-node_modules/
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ─── Build Output ─────────────────────────────────────────────────────────────
-dist/
-dist-ssr/
-build/
-*.tsbuildinfo
+node_modules
+dist
+dist-ssr
+*.local
 
-# ─── Logs ─────────────────────────────────────────────────────────────────────
-logs/
-*.log
-
-# ─── Test Scratch Scripts (local-only, not part of production code) ───────────
-Neuronovai/scratch_test_isolation.js
-Neuronovai/scripts/
-
-# ─── OS & Editor Artifacts ────────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-Desktop.ini
+# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea/
+.idea
+.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# ─── Vite / Rollup Cache ──────────────────────────────────────────────────────
-.vite/
-*.local
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
 
-# ─── Miscellaneous & Local Scratch ────────────────────────────────────────────
+# Local SQLite databases and audio/report uploads only at root or backend
+/data/
+/backend/data/*.db
+/backend/data/*.sqlite*
+/backend/data/uploads/
+/backend/data/reports/
+
+# Scratch files
 scratch/
-data/
-*/data/
-
-# ─── Internal Agent Skills & Architecture Diagrams (Local-only) ───────────────
-.agents/
-*.visual-check.*
-neuronova-architecture.html
-caregiver-login-sequence.html
-neuronova-dataflow.html
-*-architecture.html
-*-sequence.html
-*-dataflow.html
-*-workflow.html
-*-lifecycle.html
-
