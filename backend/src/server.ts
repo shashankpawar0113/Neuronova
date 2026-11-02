@@ -2366,7 +2366,8 @@ app.delete('/api/caregiver/:caregiverId/patient/:patientId/reports/:reportId', (
 });
 
 // Start HTTP and WebSocket server
-httpServer.listen(PORT, () => {
+if (!process.env.VERCEL) {
+  httpServer.listen(PORT, () => {
   const baseUrl = BACKEND_URL || `http://127.0.0.1:${PORT}`;
   console.log(`====================================================`);
   console.log(`🧠 NeuroNova AI Evaluation & Real-Time Engine on port ${PORT}`);
@@ -2374,6 +2375,7 @@ httpServer.listen(PORT, () => {
   console.log(`- WebSocket & WebRTC signaling active on port ${PORT}`);
   console.log(`====================================================`);
 });
+}
 
 
 export default app;
