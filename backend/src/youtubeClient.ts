@@ -1192,7 +1192,7 @@ export async function searchYouTubeMusic(
     return { tracks: cached.tracks, source: 'cached', era, genre };
   }
 
-  const apiKey = process.env.YOUTUBE_API_KEY;
+  const apiKey = process.env.YOUTUBE_API_KEY || 'AIzaSyCCuBgkVwJ4YOI9X1xXqW3M2xmfUGFgL2U';
 
   // 2. Call YouTube Data API v3 if key is present
   if (apiKey && apiKey.trim() !== '' && !apiKey.includes('your_')) {

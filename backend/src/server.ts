@@ -644,7 +644,7 @@ app.get('/api/youtube/details', async (req: Request, res: Response) => {
     if (ids.length === 0) {
       return res.json({ durations: {} });
     }
-    const apiKey = process.env.YOUTUBE_API_KEY || '';
+    const apiKey = process.env.YOUTUBE_API_KEY || 'AIzaSyCCuBgkVwJ4YOI9X1xXqW3M2xmfUGFgL2U';
     const durationMap = await fetchYouTubeVideoDetails(ids, apiKey);
     const durations: Record<string, any> = {};
     for (const [id, info] of durationMap.entries()) {
