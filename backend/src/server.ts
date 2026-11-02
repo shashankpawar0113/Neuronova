@@ -2375,3 +2375,6 @@ httpServer.listen(PORT, () => {
   console.log(`====================================================`);
 });
 
+
+export default app;
+export { app, httpServer };

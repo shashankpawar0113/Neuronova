@@ -1,11 +1,13 @@
 // Unified navigation and API configuration for NeuroNova
 
-// In local dev, Vite proxies /api and /socket.io to backend (port 5001).
-// You can also override with VITE_BACKEND_URL.
+// In local dev, defaults to http://localhost:5001 (or proxied).
+// On Vercel / production deployment, defaults to same-origin relative URLs ('') so Vercel service rewrites handle /api and /socket.io.
 export const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL !== undefined 
     ? import.meta.env.VITE_BACKEND_URL 
-    : 'http://localhost:5001'
+    : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+        ? ''
+        : 'http://localhost:5001')
 ).replace(/\/$/, '');
 
 // Internal client-side routes
