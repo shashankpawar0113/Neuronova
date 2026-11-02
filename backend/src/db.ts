@@ -3,11 +3,19 @@ import path from 'path';
 // @ts-ignore
 import { DatabaseSync } from 'node:sqlite';
 
-// Ensure data directory exists relative to project root
-const dataDir = path.resolve(process.cwd(), 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+import os from 'os';
+
+// Ensure data directory exists. On Vercel / serverless platforms, only /tmp (os.tmpdir()) is writable!
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+const dataDir = isServerless 
+  ? os.tmpdir() 
+  : path.resolve(process.cwd(), 'data');
+
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+} catch (_) {}
 
 const dbPath = path.join(dataDir, 'neuronova.db');
 
@@ -334,3 +342,10 @@ export function initDatabase() {
   console.log(`[Database] SQLite initialized at ${dbPath}`);
 }
 
+
+// Auto-initialize tables immediately upon load
+try {
+  initDatabase();
+} catch (err) {
+  console.warn('[Database] Auto-init tables error:', err);
+}

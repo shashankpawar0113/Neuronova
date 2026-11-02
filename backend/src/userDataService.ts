@@ -439,34 +439,42 @@ export function getMoodCheckins(userId: string, limit: number = 30) {
 
 // 7. Patient-Caregiver Linking & Access Control
 export function getOrCreatePatientInviteCode(patientId: string): string {
-  const findStmt = db.prepare(`SELECT invite_code as inviteCode FROM patient_invite_codes WHERE patient_id = ?`);
-  const existing = findStmt.get(patientId) as any;
-  if (existing?.inviteCode) {
-    return existing.inviteCode;
-  }
-
-  // Generate short friendly code e.g. NEURO-7X4K
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let rand = '';
-  for (let i = 0; i < 4; i++) {
-    rand += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  const code = `NEURO-${rand}`;
-
   try {
-    const insertStmt = db.prepare(`
-      INSERT INTO patient_invite_codes (patient_id, invite_code)
-      VALUES (?, ?)
-      ON CONFLICT(patient_id) DO UPDATE SET invite_code = excluded.invite_code
-    `);
-    insertStmt.run(patientId, code);
-    return code;
-  } catch (_) {
-    // In case of rare collision, fallback with timestamp suffix
-    const fallback = `NEURO-${rand}${Date.now().toString().slice(-2)}`;
-    const ins = db.prepare(`INSERT INTO patient_invite_codes (patient_id, invite_code) VALUES (?, ?)`);
-    ins.run(patientId, fallback);
-    return fallback;
+    const findStmt = db.prepare(`SELECT invite_code as inviteCode FROM patient_invite_codes WHERE patient_id = ?`);
+    const existing = findStmt.get(patientId) as any;
+    if (existing?.inviteCode) {
+      return existing.inviteCode;
+    }
+
+    // Generate short friendly code e.g. NEURO-7X4K
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let rand = '';
+    for (let i = 0; i < 4; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const code = `NEURO-${rand}`;
+
+    try {
+      const insertStmt = db.prepare(`
+        INSERT INTO patient_invite_codes (patient_id, invite_code)
+        VALUES (?, ?)
+        ON CONFLICT(patient_id) DO UPDATE SET invite_code = excluded.invite_code
+      `);
+      insertStmt.run(patientId, code);
+      return code;
+    } catch (_) {
+      const fallback = `NEURO-${rand}${Date.now().toString().slice(-2)}`;
+      try {
+        const ins = db.prepare(`INSERT INTO patient_invite_codes (patient_id, invite_code) VALUES (?, ?)`);
+        ins.run(patientId, fallback);
+      } catch (_) {}
+      return fallback;
+    }
+  } catch (err) {
+    console.warn('[UserDataService] Database invite code error, using deterministic fallback:', err);
+    const clean = (patientId || 'kamla').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const hashPart = clean.slice(-4).padStart(4, 'X');
+    return `NEURO-${hashPart}`;
   }
 }
 

@@ -33,14 +33,33 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  useEffect(() => {
-    if (!isSecretMenuOpen || !userId) return;
-    let active = true;
-    const url = userName 
-      ? `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code?name=${encodeURIComponent(userName)}`
-      : `${BACKEND_URL}/api/patient/${encodeURIComponent(userId)}/invite-code`;
+  const effectiveUserId = userId || (() => {
+    try {
+      if (typeof window !== 'undefined' && window.location.search) {
+        const p = new URLSearchParams(window.location.search);
+        const qId = p.get('userId') || p.get('uid');
+        if (qId) return qId;
+      }
+      const s = localStorage.getItem('neuronova_auth_session');
+      if (s) {
+        const parsed = JSON.parse(s);
+        return parsed?.userId || parsed?.uid || '';
+      }
+    } catch (_) {}
+    return 'user_kamla_sharma_family_care';
+  })();
 
-    fetch(url)
+  const fallbackCode = `NEURO-${(effectiveUserId.replace(/[^a-zA-Z0-9]/g, '').slice(-4) || 'CARE').toUpperCase()}`;
+
+  useEffect(() => {
+    if (!isSecretMenuOpen) return;
+    let active = true;
+    const targetId = effectiveUserId || 'user_kamla_sharma_family_care';
+    const base = BACKEND_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001');
+    const url = new URL(`${BACKEND_URL || ''}/api/patient/${encodeURIComponent(targetId)}/invite-code`, base);
+    if (userName) url.searchParams.set('name', userName);
+
+    fetch(url.toString())
       .then(r => r.json())
       .then(d => {
         if (active && d?.inviteCode) {
@@ -49,7 +68,7 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
       })
       .catch(() => {});
     return () => { active = false; };
-  }, [isSecretMenuOpen, userId, userName]);
+  }, [isSecretMenuOpen, effectiveUserId, userName]);
   const tapCountRef = useRef(0);
   const lastTapTimeRef = useRef(0);
   const secretMenuRef = useRef<HTMLDivElement>(null);
@@ -224,12 +243,12 @@ export const GreetingHeader: React.FC<GreetingHeaderProps> = ({
 
                   <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-forest-200/80 shadow-2xs">
                     <span className="font-mono font-extrabold text-base tracking-widest text-forest-900 select-all">
-                      {inviteCode || (userId ? `NEURO-${userId.slice(-4).toUpperCase()}` : 'Connecting...')}
+                      {inviteCode || fallbackCode}
                     </span>
                     <button
                       type="button"
                       onClick={() => {
-                        const codeToCopy = inviteCode || (userId ? `NEURO-${userId.slice(-4).toUpperCase()}` : '');
+                        const codeToCopy = inviteCode || fallbackCode;
                         if (codeToCopy && navigator.clipboard) {
                           navigator.clipboard.writeText(codeToCopy);
                           setCopiedCode(true);
